@@ -13,7 +13,7 @@ export type NavigationTab =
   | 'settings' 
   | 'admin';
 
-export type UserRole = 'user' | 'admin';
+export type UserRole = 'user' | 'admin' | 'sub_admin';
 
 export interface UserProfile {
   id: string;
@@ -28,6 +28,27 @@ export interface UserProfile {
   role: UserRole;
   joinedDate: string;
   referralCode: string;
+  accountStatus?: 'active' | 'suspended' | 'banned';
+  usdtBalance?: number;
+}
+
+export interface ManagedUser {
+  id: string;
+  username: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  avatar: string;
+  vipLevel: number;
+  kycStatus: 'unverified' | 'pending' | 'verified' | 'rejected';
+  accountStatus: 'active' | 'suspended' | 'banned';
+  role: UserRole;
+  usdtBalance: number;
+  totalDeposit: number;
+  totalWithdraw: number;
+  joinedDate: string;
+  referralCode: string;
+  tradesCount: number;
 }
 
 export interface WalletState {
@@ -110,6 +131,22 @@ export interface NotificationItem {
   type: 'trading' | 'deposit' | 'withdrawal' | 'system' | 'announcement';
   timestamp: string;
   isRead: boolean;
+}
+
+export interface KycRequestData {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  docType: 'nid' | 'passport' | 'license';
+  docNumber: string;
+  fullName: string;
+  frontDocUrl?: string;
+  backDocUrl?: string;
+  selfieDocUrl?: string;
+  submittedAt: string;
+  status: 'pending' | 'verified' | 'rejected';
+  rejectionReason?: string;
 }
 
 export interface LoanData {

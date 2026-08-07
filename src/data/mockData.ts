@@ -6,7 +6,8 @@ import {
   TransactionItem, 
   NotificationItem, 
   LoanData, 
-  BonusTask 
+  BonusTask,
+  ManagedUser
 } from '../types';
 
 export const initialUserProfile: UserProfile = {
@@ -159,6 +160,26 @@ export const initialCryptoTickers: CryptoTicker[] = [
 
 export const initialTransactions: TransactionItem[] = [
   {
+    id: 'TX-99890',
+    type: 'deposit',
+    amount: 1500.00,
+    asset: 'USDT (TRC20)',
+    status: 'pending',
+    txHash: '0x3f8219e48102a94f881c...',
+    date: '2026-08-07 11:15:00',
+    note: 'Deposit Request (Pending Admin Approval)'
+  },
+  {
+    id: 'TX-99889',
+    type: 'withdraw',
+    amount: 500.00,
+    asset: 'USDT (TRC20)',
+    status: 'pending',
+    txHash: '0x7a9123b48102a94f112a...',
+    date: '2026-08-07 10:45:00',
+    note: 'Withdrawal to 0x71C7... (Pending Admin Approval)'
+  },
+  {
     id: 'TX-99824',
     type: 'deposit',
     amount: 5000.00,
@@ -272,5 +293,116 @@ export const bonusTasksList: BonusTask[] = [
     rewardAmount: 62.35,
     status: 'locked',
     description: 'Unlocks after completing Day 2 task submission.'
+  }
+];
+
+export const initialUsersList: ManagedUser[] = [
+  {
+    id: 'ADM-000580',
+    username: 'emukhan580',
+    fullName: 'EMU KHAN (Super Admin)',
+    email: 'emukhan580@admin.com',
+    phone: '+1 (555) 580-2026',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
+    vipLevel: 5,
+    kycStatus: 'verified',
+    accountStatus: 'active',
+    role: 'admin',
+    usdtBalance: 500000.00,
+    totalDeposit: 1000000.00,
+    totalWithdraw: 500000.00,
+    joinedDate: '2025-01-01',
+    referralCode: 'ADMIN-EMUKHAN',
+    tradesCount: 580
+  },
+  {
+    id: 'SUB-100201',
+    username: 'subadmin_ops',
+    fullName: 'Sub Admin Inspector',
+    email: 'subadmin@usdtpro.com',
+    phone: '+1 (555) 782-9901',
+    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=250&q=80',
+    vipLevel: 4,
+    kycStatus: 'verified',
+    accountStatus: 'active',
+    role: 'sub_admin',
+    usdtBalance: 50000.00,
+    totalDeposit: 100000.00,
+    totalWithdraw: 20000.00,
+    joinedDate: '2025-05-10',
+    referralCode: 'SUBADMIN-01',
+    tradesCount: 120
+  },
+  {
+    id: 'USR-8829401',
+    username: 'alexmorgan',
+    fullName: 'Alex Morgan',
+    email: 'alex.m@usdtpro.com',
+    phone: '+1 (555) 389-2041',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
+    vipLevel: 3,
+    kycStatus: 'verified',
+    accountStatus: 'active',
+    role: 'user',
+    usdtBalance: 12850.50,
+    totalDeposit: 45200.00,
+    totalWithdraw: 28500.00,
+    joinedDate: '2025-11-12',
+    referralCode: 'USDT-VIP-8829',
+    tradesCount: 42
+  },
+  {
+    id: 'USR-9012384',
+    username: 'elena_r',
+    fullName: 'Elena Rostova',
+    email: 'elena.r@globaltrader.io',
+    phone: '+44 7911 123456',
+    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=250&q=80',
+    vipLevel: 5,
+    kycStatus: 'verified',
+    accountStatus: 'active',
+    role: 'user',
+    usdtBalance: 84500.00,
+    totalDeposit: 150000.00,
+    totalWithdraw: 95000.00,
+    joinedDate: '2025-08-01',
+    referralCode: 'ELENA-VIP5',
+    tradesCount: 189
+  },
+  {
+    id: 'USR-7734109',
+    username: 'david_chen',
+    fullName: 'David Chen',
+    email: 'd.chen@cryptoasia.com',
+    phone: '+852 9123 4567',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=250&q=80',
+    vipLevel: 1,
+    kycStatus: 'pending',
+    accountStatus: 'active',
+    role: 'user',
+    usdtBalance: 1200.00,
+    totalDeposit: 3000.00,
+    totalWithdraw: 1800.00,
+    joinedDate: '2026-01-15',
+    referralCode: 'CHEN-USDT',
+    tradesCount: 8
+  },
+  {
+    id: 'USR-6629104',
+    username: 'rahul_s',
+    fullName: 'Rahul Sharma',
+    email: 'rahul.s@techfin.in',
+    phone: '+91 98765 43210',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=250&q=80',
+    vipLevel: 0,
+    kycStatus: 'unverified',
+    accountStatus: 'suspended',
+    role: 'user',
+    usdtBalance: 150.00,
+    totalDeposit: 500.00,
+    totalWithdraw: 0.00,
+    joinedDate: '2026-02-01',
+    referralCode: 'RAHUL-90',
+    tradesCount: 3
   }
 ];

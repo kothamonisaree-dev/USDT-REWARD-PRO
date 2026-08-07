@@ -9,7 +9,9 @@ import {
   TradeRecord, 
   TransactionItem, 
   NotificationItem, 
-  LoanData 
+  LoanData,
+  KycRequestData,
+  ManagedUser
 } from './types';
 import { 
   initialUserProfile, 
@@ -18,7 +20,8 @@ import {
   initialCryptoTickers, 
   initialTransactions, 
   initialNotifications, 
-  initialLoanNoticeData 
+  initialLoanNoticeData,
+  initialUsersList
 } from './data/mockData';
 import { fetchLiveBinanceTickers } from './services/binance';
 
@@ -47,6 +50,17 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<NavigationTab>('home');
   const [userRole, setUserRole] = useState<UserRole>('user');
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true);
+  const [authMode, setAuthMode] = useState<'signin' | 'register'>('signin');
+  const [loginEmail, setLoginEmail] = useState<string>('alex.m@usdtpro.com');
+  const [loginPassword, setLoginPassword] = useState<string>('');
+  
+  // Register Fields
+  const [regName, setRegName] = useState<string>('');
+  const [regEmail, setRegEmail] = useState<string>('');
+  const [regPassword, setRegPassword] = useState<string>('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState<string>('');
+  const [regReferral, setRegReferral] = useState<string>('');
 
   // Core App State
   const [user, setUser] = useState<UserProfile>(initialUserProfile);
@@ -56,8 +70,161 @@ export default function App() {
   const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
   const [loan, setLoan] = useState<LoanData>(initialLoanNoticeData);
 
+  // KYC Requests State
+  const [kycRequests, setKycRequests] = useState<KycRequestData[]>([
+    {
+      id: 'KYC-882901',
+      userId: 'USR-8829401',
+      userName: 'Alex Morgan',
+      userEmail: 'alex.m@usdtpro.com',
+      docType: 'nid',
+      docNumber: '59201928401',
+      fullName: 'Alex Morgan',
+      frontDocUrl: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=400&q=80',
+      backDocUrl: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=400&q=80',
+      selfieDocUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+      submittedAt: '10:30 AM, Today',
+      status: 'pending'
+    }
+  ]);
+
   // Active Running Investment
   const [activeInvestment, setActiveInvestment] = useState<ActiveInvestment | null>(null);
+
+  // Users List State
+  const [usersList, setUsersList] = useState<ManagedUser[]>(initialUsersList);
+
+  // Handlers for KYC Approval/Rejection
+  const handleKycSubmit = (newReq: KycRequestData) => {
+    setKycRequests(prev => [newReq, ...prev]);
+    setUser(prev => ({ ...prev, kycStatus: 'pending' }));
+    handleAddNotification(
+      '📄 KYC Level 4 Submitted',
+      'Your verification documents have been submitted and are pending Admin review.',
+      'system'
+    );
+  };
+
+  const handleApproveKyc = (reqId: string) => {
+    setKycRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: 'verified' } : r));
+    setUser(prev => ({ ...prev, kycStatus: 'verified' }));
+    handleAddNotification(
+      '🎉 KYC Approved!',
+      'Admin has APPROVED your VIP Level 4 KYC verification. $100,000 USD daily withdrawal limit active!',
+      'system'
+    );
+  };
+
+  const handleRejectKyc = (reqId: string) => {
+    setKycRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: 'rejected' } : r));
+    setUser(prev => ({ ...prev, kycStatus: 'rejected' }));
+    handleAddNotification(
+      '❌ KYC Application Rejected',
+      'Admin has rejected your KYC application. Please re-check document photos and re-submit in Profile.',
+      'system'
+    );
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+  };
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const input = loginEmail.trim().toLowerCase();
+    const password = loginPassword.trim();
+
+    // Check against mock database users
+    const matchedUser = usersList.find(
+      u => u.username.toLowerCase() === input || u.email.toLowerCase() === input
+    );
+
+    if (matchedUser) {
+      // Password validation for admin & sub_admin
+      if (matchedUser.role === 'admin' || matchedUser.username === 'emukhan580') {
+        if (password !== 'Imran2015@!@!') {
+          alert('❌ Incorrect Admin Password! Required Super Admin password: Imran2015@!@!');
+          return;
+        }
+      }
+
+      setUserRole(matchedUser.role);
+      setUser(prev => ({
+        ...prev,
+        id: matchedUser.id,
+        username: matchedUser.username,
+        fullName: matchedUser.fullName,
+        email: matchedUser.email,
+        phone: matchedUser.phone,
+        vipLevel: matchedUser.vipLevel,
+        referralCode: matchedUser.referralCode,
+        avatar: matchedUser.avatar
+      }));
+      setWallet(prev => ({
+        ...prev,
+        usdtBalance: matchedUser.usdtBalance,
+        usdBalance: matchedUser.usdtBalance
+      }));
+
+      setIsLoggedIn(true);
+
+      if (matchedUser.role === 'admin') {
+        setActiveTab('admin');
+        handleAddNotification(
+          '⚡ Super Admin Authenticated',
+          'Welcome to the Super Admin Control Panel, emukhan580.',
+          'announcement'
+        );
+      } else if (matchedUser.role === 'sub_admin') {
+        setActiveTab('admin');
+        handleAddNotification(
+          '🛡️ Sub-Admin Authenticated',
+          'Welcome to the Sub-Admin Read-Only Monitoring Suite.',
+          'announcement'
+        );
+      } else {
+        setActiveTab('home');
+        handleAddNotification(
+          '🔐 Login Successful',
+          `Welcome back to USDT REWARD PRO VIP account, ${matchedUser.fullName}.`,
+          'system'
+        );
+      }
+    } else {
+      // Default standard login
+      setUserRole('user');
+      setIsLoggedIn(true);
+      setActiveTab('home');
+      handleAddNotification(
+        '🔐 Login Successful',
+        'Welcome back to USDT REWARD PRO VIP account.',
+        'system'
+      );
+    }
+  };
+
+  const handleRegister = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (regPassword && regConfirmPassword && regPassword !== regConfirmPassword) {
+      alert('Passwords do not match. Please check and try again.');
+      return;
+    }
+
+    if (regEmail) {
+      setUser(prev => ({
+        ...prev,
+        name: regName.trim() || 'VIP Trader',
+        email: regEmail.trim(),
+      }));
+    }
+
+    setIsLoggedIn(true);
+    handleAddNotification(
+      '🎉 Account Created Successfully',
+      `Welcome ${regName || 'Trader'}! Your VIP Reward Wallet account is ready.`,
+      'system'
+    );
+  };
 
   // Fetch Live Binance Tickers periodically
   useEffect(() => {
@@ -202,41 +369,34 @@ export default function App() {
     setTransactions(prev => [newTx, ...prev]);
   };
 
-  // Handler: Deposit
+  // Handler: Deposit Request (Pending Admin Approval)
   const handleDepositSubmit = (amount: number, asset: string) => {
-    setWallet(prev => ({
-      ...prev,
-      usdtBalance: prev.usdtBalance + amount,
-      usdBalance: prev.usdBalance + amount,
-      totalDeposit: prev.totalDeposit + amount
-    }));
-
     const newTx: TransactionItem = {
       id: `TX-${Math.floor(10000 + Math.random() * 90000)}`,
       type: 'deposit',
       amount,
       asset,
-      status: 'completed',
+      status: 'pending',
       txHash: `0x${Math.random().toString(16).substring(2, 14)}...`,
       date: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      note: 'Instant Deposit'
+      note: 'Deposit Request (Pending Admin Approval)'
     };
     setTransactions(prev => [newTx, ...prev]);
 
     handleAddNotification(
-      '💰 Deposit Received',
-      `Your deposit of $${amount.toFixed(2)} ${asset} was successfully credited.`,
+      '⏳ Deposit Submitted (Pending Admin)',
+      `Your deposit request of $${amount.toFixed(2)} ${asset} has been submitted. It will be credited once approved by Admin.`,
       'deposit'
     );
   };
 
-  // Handler: Withdraw
+  // Handler: Withdraw Request (Pending Admin Approval)
   const handleWithdrawSubmit = (amount: number, asset: string, address: string) => {
+    // Hold funds while pending
     setWallet(prev => ({
       ...prev,
       usdtBalance: Math.max(0, prev.usdtBalance - amount),
-      usdBalance: Math.max(0, prev.usdBalance - amount),
-      totalWithdraw: prev.totalWithdraw + amount
+      usdBalance: Math.max(0, prev.usdBalance - amount)
     }));
 
     const newTx: TransactionItem = {
@@ -244,17 +404,141 @@ export default function App() {
       type: 'withdraw',
       amount,
       asset,
-      status: 'completed',
+      status: 'pending',
       txHash: `0x${Math.random().toString(16).substring(2, 14)}...`,
       date: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      note: `Withdrawal to ${address.substring(0, 8)}...`
+      note: `Withdrawal to ${address.substring(0, 8)}... (Pending Admin)`
     };
     setTransactions(prev => [newTx, ...prev]);
 
     handleAddNotification(
-      '📤 Withdrawal Dispatched',
-      `Withdrawal of $${amount.toFixed(2)} ${asset} submitted to network.`,
+      '⏳ Withdrawal Submitted (Pending Admin)',
+      `Your withdrawal request of $${amount.toFixed(2)} ${asset} has been submitted for Admin approval.`,
       'withdrawal'
+    );
+  };
+
+  // Handler: Admin Approve Transaction
+  const handleApproveTransaction = (txId: string) => {
+    const target = transactions.find(t => t.id === txId);
+    if (!target) return;
+
+    setTransactions(prev => prev.map(t => t.id === txId ? { ...t, status: 'completed' } : t));
+
+    if (target.type === 'deposit') {
+      setWallet(prev => ({
+        ...prev,
+        usdtBalance: prev.usdtBalance + target.amount,
+        usdBalance: prev.usdBalance + target.amount,
+        totalDeposit: prev.totalDeposit + target.amount
+      }));
+      handleAddNotification(
+        '💰 Deposit Approved!',
+        `Admin has APPROVED your deposit of $${target.amount.toFixed(2)} USDT! Balance credited.`,
+        'deposit'
+      );
+    } else if (target.type === 'withdraw') {
+      setWallet(prev => ({
+        ...prev,
+        totalWithdraw: prev.totalWithdraw + target.amount
+      }));
+      handleAddNotification(
+        '✅ Withdrawal Approved!',
+        `Admin has APPROVED your withdrawal of $${target.amount.toFixed(2)} USDT! Funds dispatched.`,
+        'withdrawal'
+      );
+    }
+  };
+
+  // Handler: Admin Reject Transaction
+  const handleRejectTransaction = (txId: string) => {
+    const target = transactions.find(t => t.id === txId);
+    if (!target) return;
+
+    setTransactions(prev => prev.map(t => t.id === txId ? { ...t, status: 'failed' } : t));
+
+    if (target.type === 'deposit') {
+      handleAddNotification(
+        '❌ Deposit Request Rejected',
+        `Admin rejected your deposit request of $${target.amount.toFixed(2)} USDT.`,
+        'deposit'
+      );
+    } else if (target.type === 'withdraw') {
+      // Refund held balance
+      setWallet(prev => ({
+        ...prev,
+        usdtBalance: prev.usdtBalance + target.amount,
+        usdBalance: prev.usdBalance + target.amount
+      }));
+      handleAddNotification(
+        '❌ Withdrawal Request Rejected',
+        `Admin rejected withdrawal request of $${target.amount.toFixed(2)} USDT. Funds refunded to wallet.`,
+        'withdrawal'
+      );
+    }
+  };
+
+  // Handlers for User Management System
+  const handleUpdateUserBalance = (userId: string, newBalance: number) => {
+    setUsersList(prev => prev.map(u => u.id === userId ? { ...u, usdtBalance: newBalance } : u));
+    
+    // If target user is main profile (USR-8829401), keep active wallet state in sync
+    if (userId === 'USR-8829401' || userId === user.id) {
+      setWallet(prev => ({ ...prev, usdtBalance: newBalance, usdBalance: newBalance }));
+      handleAddNotification(
+        '💵 Balance Adjusted by Admin',
+        `Admin updated your USDT wallet balance to $${newBalance.toFixed(2)} USDT.`,
+        'system'
+      );
+    }
+  };
+
+  const handleChangeUserStatus = (userId: string, status: 'active' | 'suspended' | 'banned') => {
+    setUsersList(prev => prev.map(u => u.id === userId ? { ...u, accountStatus: status } : u));
+    
+    const target = usersList.find(u => u.id === userId);
+    if (target) {
+      handleAddNotification(
+        `🛡️ Account Status Updated`,
+        `User ${target.fullName} (${userId}) account status set to ${status.toUpperCase()}.`,
+        'system'
+      );
+    }
+  };
+
+  const handleChangeUserVip = (userId: string, vipLevel: number) => {
+    setUsersList(prev => prev.map(u => u.id === userId ? { ...u, vipLevel } : u));
+    
+    if (userId === 'USR-8829401' || userId === user.id) {
+      setUser(prev => ({ ...prev, vipLevel }));
+      handleAddNotification(
+        '👑 VIP Tier Upgraded',
+        `Congratulations! Admin upgraded your account to VIP ${vipLevel}.`,
+        'announcement'
+      );
+    }
+  };
+
+  const handleChangeUserRole = (userId: string, role: UserRole) => {
+    setUsersList(prev => prev.map(u => u.id === userId ? { ...u, role } : u));
+    
+    if (userId === 'USR-8829401' || userId === user.id) {
+      setUser(prev => ({ ...prev, role }));
+      setUserRole(role);
+      handleAddNotification(
+        '🛡️ Account Permission Changed',
+        `Your user role was updated to ${role.toUpperCase()}.`,
+        'system'
+      );
+    }
+  };
+
+  const handleAddNewUser = (newUser: ManagedUser) => {
+    setUsersList(prev => [newUser, ...prev]);
+    handleAddNotification(
+      '👤 New Member Created',
+      `Account created for ${newUser.fullName} (${newUser.email}) with $${newUser.usdtBalance.toFixed(2)} USDT balance.`,
+      'system'
     );
   };
 
@@ -297,6 +581,7 @@ export default function App() {
         userRole={userRole}
         onRoleChange={setUserRole}
         onNavigate={setActiveTab}
+        onLogout={handleLogout}
       />
 
       {/* Sidebar Drawer Modal */}
@@ -307,7 +592,193 @@ export default function App() {
         onNavigate={setActiveTab}
         userRole={userRole}
         unreadNotifications={notifications.filter(n => !n.isRead).length}
+        onLogout={handleLogout}
       />
+
+      {/* Logged Out Login / Register Modal Overlay */}
+      {!isLoggedIn && (
+        <div className="fixed inset-0 z-50 bg-[#050505]/95 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="glass-gold-card p-6 sm:p-8 max-w-md w-full space-y-5 shadow-2xl relative border-[#F4C542]/40">
+            
+            {/* Header Brand */}
+            <div className="text-center space-y-2">
+              <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-[#B8860B] via-[#F4C542] to-[#FFD700] p-0.5 shadow-[0_0_20px_rgba(244,197,66,0.3)] flex items-center justify-center">
+                <div className="w-full h-full bg-[#050505] rounded-[14px] flex items-center justify-center">
+                  <span className="text-[#F4C542] font-black text-2xl">₮</span>
+                </div>
+              </div>
+              <h2 className="text-xl font-extrabold text-slate-100">USDT REWARD PRO</h2>
+              <p className="text-xs text-slate-400">
+                {authMode === 'signin' ? 'Sign in to access your VIP wallet & trading engine' : 'Create a new account to unlock yield rewards & bonuses'}
+              </p>
+            </div>
+
+            {/* Auth Mode Tabs */}
+            <div className="flex rounded-xl bg-[#080D18] p-1 border border-slate-800">
+              <button
+                type="button"
+                onClick={() => setAuthMode('signin')}
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                  authMode === 'signin'
+                    ? 'btn-gold-gradient text-black shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuthMode('register')}
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                  authMode === 'register'
+                    ? 'btn-gold-gradient text-black shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Sign Up
+              </button>
+            </div>
+
+            {/* SIGN IN FORM */}
+            {authMode === 'signin' ? (
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Username / Email Address</label>
+                  <input
+                    type="text"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    placeholder="e.g. emukhan580 or alex.m@usdtpro.com"
+                    required
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600 font-sans"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Password</label>
+                  <input
+                    type="password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    placeholder="Enter account password"
+                    required
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
+                  />
+                  <div className="mt-2 text-[10px] text-slate-400 bg-slate-900/80 p-2 rounded-lg border border-slate-800 space-y-0.5 font-mono">
+                    <div>🔑 <strong>Super Admin:</strong> <span className="text-[#F4C542]">emukhan580</span> / <span className="text-slate-200">Imran2015@!@!</span></div>
+                    <div>🛡️ <strong>Sub-Admin:</strong> <span className="text-amber-300">subadmin_ops</span> / <span className="text-slate-200">SubAdmin2026!</span></div>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 btn-gold-gradient text-xs font-extrabold uppercase tracking-wider text-black shadow-lg shadow-[#F4C542]/20 hover:scale-[1.01] transition-transform"
+                >
+                  Sign In to VIP Wallet
+                </button>
+              </form>
+            ) : (
+              /* SIGN UP FORM */
+              <form onSubmit={handleRegister} className="space-y-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    value={regName}
+                    onChange={(e) => setRegName(e.target.value)}
+                    placeholder="e.g. Alex Morgan"
+                    required
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.target.value)}
+                    placeholder="name@example.com"
+                    required
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Password</label>
+                    <input
+                      type="password"
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      placeholder="Min. 6 chars"
+                      required
+                      className="w-full px-3 py-2.5 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Confirm Password</label>
+                    <input
+                      type="password"
+                      value={regConfirmPassword}
+                      onChange={(e) => setRegConfirmPassword(e.target.value)}
+                      placeholder="Confirm"
+                      required
+                      className="w-full px-3 py-2.5 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Referral Code (Optional)</label>
+                  <input
+                    type="text"
+                    value={regReferral}
+                    onChange={(e) => setRegReferral(e.target.value)}
+                    placeholder="e.g. VIP888"
+                    className="w-full px-3.5 py-2 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 btn-gold-gradient text-xs font-extrabold uppercase tracking-wider text-black shadow-lg shadow-[#F4C542]/20 hover:scale-[1.01] transition-transform"
+                >
+                  Sign Up & Create Account
+                </button>
+              </form>
+            )}
+
+            {/* Toggle Switch Footer */}
+            <div className="text-center pt-2 border-t border-slate-800">
+              {authMode === 'signin' ? (
+                <p className="text-xs text-slate-400">
+                  Don't have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={() => setAuthMode('register')}
+                    className="text-[#F4C542] font-bold hover:underline ml-1"
+                  >
+                    Sign Up
+                  </button>
+                </p>
+              ) : (
+                <p className="text-xs text-slate-400">
+                  Already have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={() => setAuthMode('signin')}
+                    className="text-[#F4C542] font-bold hover:underline ml-1"
+                  >
+                    Sign In
+                  </button>
+                </p>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* Main Content Viewport */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -404,7 +875,7 @@ export default function App() {
         {/* PROFILE & SECURITY */}
         {activeTab === 'profile' && (
           <div className="animate-in fade-in duration-300">
-            <SecurityAuth user={user} />
+            <SecurityAuth user={user} onLogout={handleLogout} onKycSubmit={handleKycSubmit} />
           </div>
         )}
 
@@ -453,7 +924,7 @@ export default function App() {
         {/* SECURITY & 2FA */}
         {activeTab === 'security' && (
           <div className="animate-in fade-in duration-300">
-            <SecurityAuth user={user} />
+            <SecurityAuth user={user} onLogout={handleLogout} onKycSubmit={handleKycSubmit} />
           </div>
         )}
 
@@ -478,6 +949,9 @@ export default function App() {
               currentRole={userRole}
               wallet={wallet}
               loan={loan}
+              kycRequests={kycRequests}
+              transactions={transactions}
+              usersList={usersList}
               onUpdateWalletBalance={(newBal) => {
                 setWallet(prev => ({
                   ...prev,
@@ -488,6 +962,15 @@ export default function App() {
               onSendGlobalBroadcast={(title, msg) => {
                 handleAddNotification(title, msg, 'announcement');
               }}
+              onApproveKyc={handleApproveKyc}
+              onRejectKyc={handleRejectKyc}
+              onApproveTransaction={handleApproveTransaction}
+              onRejectTransaction={handleRejectTransaction}
+              onUpdateUserBalance={handleUpdateUserBalance}
+              onChangeUserStatus={handleChangeUserStatus}
+              onChangeUserVip={handleChangeUserVip}
+              onChangeUserRole={handleChangeUserRole}
+              onAddNewUser={handleAddNewUser}
             />
           </div>
         )}

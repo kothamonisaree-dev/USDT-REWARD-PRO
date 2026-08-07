@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Bell, ShieldCheck, UserCheck, X, Check, ArrowRight, Clock } from 'lucide-react';
+import { Menu, Bell, X, ArrowRight, Clock, LogOut } from 'lucide-react';
 import { NotificationItem, UserRole } from '../types';
 
 interface HeaderProps {
@@ -9,6 +9,7 @@ interface HeaderProps {
   userRole: UserRole;
   onRoleChange: (role: UserRole) => void;
   onNavigate: (tab: any) => void;
+  onLogout?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -17,7 +18,8 @@ export const Header: React.FC<HeaderProps> = ({
   onMarkNotificationsRead,
   userRole,
   onRoleChange,
-  onNavigate
+  onNavigate,
+  onLogout
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [laTime, setLaTime] = useState<string>('');
@@ -176,6 +178,19 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
           </div>
+
+          {/* Logout Button */}
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white transition-all active:scale-95 flex items-center gap-1.5 text-xs font-bold"
+              title="Log Out"
+              aria-label="Log Out"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Logout</span>
+            </button>
+          )}
         </div>
 
       </div>

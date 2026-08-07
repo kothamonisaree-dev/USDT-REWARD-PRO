@@ -2,7 +2,7 @@ import React from 'react';
 import { NavigationTab, UserRole } from '../types';
 import { 
   Home, TrendingUp, Zap, Wallet, User, Gift, LandPlot, Headphones, 
-  ShieldCheck, Share2, Settings, ShieldAlert, X, AlertTriangle, ChevronRight, Crown 
+  ShieldCheck, Share2, Settings, ShieldAlert, X, AlertTriangle, ChevronRight, Crown, LogOut 
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -12,6 +12,7 @@ interface SidebarProps {
   onNavigate: (tab: NavigationTab) => void;
   userRole: UserRole;
   unreadNotifications: number;
+  onLogout?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -20,7 +21,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   onNavigate,
   userRole,
-  unreadNotifications
+  unreadNotifications,
+  onLogout
 }) => {
   if (!isOpen) return null;
 
@@ -123,10 +125,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </nav>
         </div>
 
-        {/* Footer info */}
-        <div className="pt-4 border-t border-slate-800 text-[11px] text-slate-500 text-center font-mono">
-          <div>USDT REWARD PRO v3.5.0</div>
-          <div className="text-[10px]">© 2026 Instant Yield Exchange</div>
+        {/* Footer info & Logout */}
+        <div className="pt-4 border-t border-slate-800 space-y-3">
+          {onLogout && (
+            <button
+              onClick={() => {
+                onClose();
+                onLogout();
+              }}
+              className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white font-bold text-xs transition-all shadow-sm"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Log Out Account</span>
+            </button>
+          )}
+
+          <div className="text-[11px] text-slate-500 text-center font-mono">
+            <div>USDT REWARD PRO v3.5.0</div>
+            <div className="text-[10px]">© 2026 Instant Yield Exchange</div>
+          </div>
         </div>
 
       </div>

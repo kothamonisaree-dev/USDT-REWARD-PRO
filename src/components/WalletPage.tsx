@@ -169,8 +169,9 @@ export const WalletPage: React.FC<WalletPageProps> = ({
             </div>
 
             {depositSuccess && (
-              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold">
-                ✅ Deposit Request Submitted! Your account balance will update automatically upon network confirmation.
+              <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-2">
+                <span>⏳</span>
+                <span>Deposit Request Submitted! Pending Admin Approval. Your balance will be credited upon Admin approval.</span>
               </div>
             )}
 
@@ -260,8 +261,9 @@ export const WalletPage: React.FC<WalletPageProps> = ({
           )}
 
           {withdrawSuccess && (
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold">
-              ✅ Withdrawal Request Submitted! Funds dispatched to destination network.
+            <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-2">
+              <span>⏳</span>
+              <span>Withdrawal Request Submitted! Pending Admin Approval. Your funds will be dispatched upon Admin approval.</span>
             </div>
           )}
 
