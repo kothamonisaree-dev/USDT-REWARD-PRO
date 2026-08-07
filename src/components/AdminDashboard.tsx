@@ -287,7 +287,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           <div className="bg-[#080D18] p-3 rounded-xl border border-slate-800">
             <span className="text-[10px] text-slate-400 uppercase font-bold block">Total Vault Funds</span>
-            <span className="text-lg font-extrabold text-[#F4C542]">${totalVaultFunds.toLocaleString('en-US', { minimumFractionDigits: 2 })} USDT</span>
+            <span className="text-lg font-extrabold text-[#F4C542]">${(totalVaultFunds ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} USDT</span>
           </div>
         </div>
 
@@ -969,23 +969,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
               <div>
                 <span className="text-slate-400 block font-sans text-[11px]">USDT Vault Balance:</span>
-                <span className="font-extrabold text-[#F4C542] text-sm">${selectedUserForInspect.usdtBalance.toFixed(2)} USDT</span>
+                <span className="font-extrabold text-[#F4C542] text-sm">${(selectedUserForInspect?.usdtBalance ?? 0).toFixed(2)} USDT</span>
               </div>
               <div>
                 <span className="text-slate-400 block font-sans text-[11px]">Account Role:</span>
-                <span className="font-bold uppercase text-slate-100">{selectedUserForInspect.role}</span>
+                <span className="font-bold uppercase text-slate-100">{selectedUserForInspect?.role ?? 'user'}</span>
               </div>
               <div>
                 <span className="text-slate-400 block font-sans text-[11px]">Total Deposits:</span>
-                <span className="font-bold text-emerald-400">${selectedUserForInspect.totalDeposit.toFixed(2)}</span>
+                <span className="font-bold text-emerald-400">${(selectedUserForInspect?.totalDeposit ?? 0).toFixed(2)}</span>
               </div>
               <div>
                 <span className="text-slate-400 block font-sans text-[11px]">Total Withdrawals:</span>
-                <span className="font-bold text-blue-400">${selectedUserForInspect.totalWithdraw.toFixed(2)}</span>
+                <span className="font-bold text-blue-400">${(selectedUserForInspect?.totalWithdraw ?? 0).toFixed(2)}</span>
               </div>
               <div>
                 <span className="text-slate-400 block font-sans text-[11px]">Total Trades Executed:</span>
-                <span className="font-bold text-slate-200">{selectedUserForInspect.tradesCount} Trades</span>
+                <span className="font-bold text-slate-200">{selectedUserForInspect?.tradesCount ?? 0} Trades</span>
               </div>
               <div>
                 <span className="text-slate-400 block font-sans text-[11px]">Referral Code:</span>

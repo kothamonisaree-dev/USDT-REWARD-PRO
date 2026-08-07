@@ -25,25 +25,25 @@ export const QuickStats: React.FC<QuickStatsProps> = ({ wallet, onClaimDailyRewa
   const stats = [
     {
       label: 'Total Deposit',
-      value: `$${wallet.totalDeposit.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+      value: `$${(wallet?.totalDeposit ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
       icon: ArrowDownLeft,
       color: 'text-amber-400 bg-amber-400/10 border-amber-400/20'
     },
     {
       label: 'Total Withdraw',
-      value: `$${wallet.totalWithdraw.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+      value: `$${(wallet?.totalWithdraw ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
       icon: ArrowUpRight,
       color: 'text-blue-400 bg-blue-400/10 border-blue-400/20'
     },
     {
       label: 'Total Profit',
-      value: `+$${wallet.totalProfit.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+      value: `+$${(wallet?.totalProfit ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
       icon: TrendingUp,
       color: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20'
     },
     {
       label: 'Active Investment',
-      value: `$${wallet.activeInvestmentAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+      value: `$${(wallet?.activeInvestmentAmount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
       icon: Zap,
       color: 'text-[#F4C542] bg-[#F4C542]/10 border-[#F4C542]/20'
     }

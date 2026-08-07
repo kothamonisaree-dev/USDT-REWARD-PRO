@@ -58,19 +58,6 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Menu className="w-5 h-5" />
           </button>
-
-          {/* Role selector dropdown badge */}
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0D121F] border border-[#F4C542]/20 text-xs">
-            <span className="text-slate-400">Role:</span>
-            <select
-              value={userRole}
-              onChange={(e) => onRoleChange(e.target.value as UserRole)}
-              className="bg-transparent text-[#F4C542] font-semibold focus:outline-none cursor-pointer"
-            >
-              <option value="user" className="bg-[#0D121F] text-slate-200">User Dashboard</option>
-              <option value="admin" className="bg-[#0D121F] text-slate-200">Admin Panel</option>
-            </select>
-          </div>
         </div>
 
         {/* Center: Premium Logo */}

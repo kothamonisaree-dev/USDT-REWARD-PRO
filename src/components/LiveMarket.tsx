@@ -89,7 +89,7 @@ export const LiveMarket: React.FC<LiveMarketProps> = ({ tickers, onSelectTicker 
 
                   {/* Price */}
                   <td className="p-4 font-bold text-slate-100">
-                    ${ticker.price.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    ${(ticker.price ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                   </td>
 
                   {/* 24h Change */}
@@ -98,14 +98,14 @@ export const LiveMarket: React.FC<LiveMarketProps> = ({ tickers, onSelectTicker 
                       isUp ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/15 text-red-400 border border-red-500/30'
                     }`}>
                       {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                      {isUp ? '+' : ''}{ticker.change24h.toFixed(2)}%
+                      {isUp ? '+' : ''}{(ticker.change24h ?? 0).toFixed(2)}%
                     </span>
                   </td>
 
                   {/* High / Low */}
                   <td className="p-4 text-slate-300 text-[11px]">
-                    <div>H: <span className="text-emerald-400">${ticker.high24h.toLocaleString()}</span></div>
-                    <div>L: <span className="text-red-400">${ticker.low24h.toLocaleString()}</span></div>
+                    <div>H: <span className="text-emerald-400">${(ticker.high24h ?? 0).toLocaleString()}</span></div>
+                    <div>L: <span className="text-red-400">${(ticker.low24h ?? 0).toLocaleString()}</span></div>
                   </td>
 
                   {/* Sparkline */}

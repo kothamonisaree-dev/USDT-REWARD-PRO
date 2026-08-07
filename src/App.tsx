@@ -57,7 +57,9 @@ export default function App() {
   
   // Register Fields
   const [regName, setRegName] = useState<string>('');
+  const [regUsername, setRegUsername] = useState<string>('');
   const [regEmail, setRegEmail] = useState<string>('');
+  const [regPhone, setRegPhone] = useState<string>('');
   const [regPassword, setRegPassword] = useState<string>('');
   const [regConfirmPassword, setRegConfirmPassword] = useState<string>('');
   const [regReferral, setRegReferral] = useState<string>('');
@@ -163,7 +165,11 @@ export default function App() {
       setWallet(prev => ({
         ...prev,
         usdtBalance: matchedUser.usdtBalance,
-        usdBalance: matchedUser.usdtBalance
+        usdBalance: matchedUser.usdtBalance,
+        totalDeposit: matchedUser.totalDeposit ?? prev.totalDeposit ?? 0,
+        totalWithdraw: matchedUser.totalWithdraw ?? prev.totalWithdraw ?? 0,
+        totalProfit: prev.totalProfit ?? 0,
+        activeInvestmentAmount: prev.activeInvestmentAmount ?? 0
       }));
 
       setIsLoggedIn(true);
@@ -191,13 +197,43 @@ export default function App() {
         );
       }
     } else {
-      // Default standard login
+      // Dynamic login for new or custom credentials
+      const fallbackName = loginEmail.includes('@') ? loginEmail.split('@')[0] : loginEmail;
+      const customUser: UserProfile = {
+        id: `USR-${Math.floor(100000 + Math.random() * 900000)}`,
+        username: loginEmail.toLowerCase(),
+        fullName: fallbackName.toUpperCase(),
+        email: loginEmail.includes('@') ? loginEmail : `${loginEmail}@usdtpro.com`,
+        phone: '+1 (555) 019-2831',
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${loginEmail}`,
+        vipLevel: 1,
+        kycStatus: 'unverified',
+        is2FAEnabled: false,
+        role: 'user',
+        joinedDate: new Date().toISOString().split('T')[0],
+        referralCode: `REF-${Math.floor(100000 + Math.random() * 900000)}`,
+        accountStatus: 'active',
+        usdtBalance: 0.00
+      };
+
+      setUser(customUser);
+      setWallet({
+        usdtBalance: 0.00,
+        usdBalance: 0.00,
+        btcBalance: 0.00,
+        ethBalance: 0.00,
+        totalDeposit: 0.00,
+        totalWithdraw: 0.00,
+        totalProfit: 0.00,
+        activeInvestmentAmount: 0.00,
+        walletAddress: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F'
+      });
       setUserRole('user');
       setIsLoggedIn(true);
       setActiveTab('home');
       handleAddNotification(
         '🔐 Login Successful',
-        'Welcome back to USDT REWARD PRO VIP account.',
+        `Welcome to USDT REWARD PRO VIP account, ${customUser.fullName}.`,
         'system'
       );
     }
@@ -210,18 +246,82 @@ export default function App() {
       return;
     }
 
-    if (regEmail) {
-      setUser(prev => ({
-        ...prev,
-        name: regName.trim() || 'VIP Trader',
-        email: regEmail.trim(),
-      }));
-    }
+    const newUserId = `USR-${Math.floor(1000000 + Math.random() * 9000000)}`;
+    const formattedName = regName.trim() || 'VIP Trader';
+    const generatedUsername = regUsername.trim().toLowerCase() || regName.trim().toLowerCase().replace(/\s+/g, '_') || `user_${Math.floor(1000 + Math.random() * 9000)}`;
+    const emailAddr = regEmail.trim() || `${generatedUsername}@example.com`;
+    const phoneNumber = regPhone.trim() || '+1 (555) ' + Math.floor(100 + Math.random() * 900) + '-' + Math.floor(1000 + Math.random() * 9000);
+    const refCode = regReferral.trim() || `REF-${Math.floor(100000 + Math.random() * 900000)}`;
 
+    const newManagedUser: ManagedUser = {
+      id: newUserId,
+      username: generatedUsername,
+      fullName: formattedName,
+      email: emailAddr,
+      phone: phoneNumber,
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${generatedUsername}`,
+      vipLevel: 1,
+      kycStatus: 'unverified',
+      accountStatus: 'active',
+      role: 'user',
+      usdtBalance: 0.00,
+      totalDeposit: 0.00,
+      totalWithdraw: 0.00,
+      joinedDate: new Date().toISOString().split('T')[0],
+      referralCode: refCode,
+      tradesCount: 0
+    };
+
+    // Save to users list for admin inspection
+    setUsersList(prev => [newManagedUser, ...prev]);
+
+    // Active User Profile state
+    const newProfile: UserProfile = {
+      id: newManagedUser.id,
+      username: newManagedUser.username,
+      fullName: newManagedUser.fullName,
+      email: newManagedUser.email,
+      phone: newManagedUser.phone,
+      avatar: newManagedUser.avatar,
+      vipLevel: 1,
+      kycStatus: 'unverified',
+      is2FAEnabled: false,
+      role: 'user',
+      joinedDate: newManagedUser.joinedDate,
+      referralCode: newManagedUser.referralCode,
+      accountStatus: 'active',
+      usdtBalance: 0.00
+    };
+
+    setUser(newProfile);
+    setWallet({
+      usdtBalance: 0.00,
+      usdBalance: 0.00,
+      btcBalance: 0.00,
+      ethBalance: 0.00,
+      totalDeposit: 0.00,
+      totalWithdraw: 0.00,
+      totalProfit: 0.00,
+      activeInvestmentAmount: 0.00,
+      walletAddress: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F'
+    });
+
+    setUserRole('user');
     setIsLoggedIn(true);
+    setActiveTab('home');
+
+    // Reset register input fields
+    setRegName('');
+    setRegUsername('');
+    setRegEmail('');
+    setRegPhone('');
+    setRegPassword('');
+    setRegConfirmPassword('');
+    setRegReferral('');
+
     handleAddNotification(
       '🎉 Account Created Successfully',
-      `Welcome ${regName || 'Trader'}! Your VIP Reward Wallet account is ready.`,
+      `Welcome ${formattedName}! Your VIP Reward Wallet account is ready.`,
       'system'
     );
   };
@@ -664,10 +764,6 @@ export default function App() {
                     required
                     className="w-full px-3.5 py-2.5 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
                   />
-                  <div className="mt-2 text-[10px] text-slate-400 bg-slate-900/80 p-2 rounded-lg border border-slate-800 space-y-0.5 font-mono">
-                    <div>🔑 <strong>Super Admin:</strong> <span className="text-[#F4C542]">emukhan580</span> / <span className="text-slate-200">Imran2015@!@!</span></div>
-                    <div>🛡️ <strong>Sub-Admin:</strong> <span className="text-amber-300">subadmin_ops</span> / <span className="text-slate-200">SubAdmin2026!</span></div>
-                  </div>
                 </div>
 
                 <button
@@ -679,29 +775,55 @@ export default function App() {
               </form>
             ) : (
               /* SIGN UP FORM */
-              <form onSubmit={handleRegister} className="space-y-3.5">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Full Name</label>
-                  <input
-                    type="text"
-                    value={regName}
-                    onChange={(e) => setRegName(e.target.value)}
-                    placeholder="e.g. Alex Morgan"
-                    required
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
-                  />
+              <form onSubmit={handleRegister} className="space-y-3">
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Full Name</label>
+                    <input
+                      type="text"
+                      value={regName}
+                      onChange={(e) => setRegName(e.target.value)}
+                      placeholder="e.g. John Doe"
+                      required
+                      className="w-full px-3 py-2 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Username</label>
+                    <input
+                      type="text"
+                      value={regUsername}
+                      onChange={(e) => setRegUsername(e.target.value)}
+                      placeholder="e.g. johndoe99"
+                      required
+                      className="w-full px-3 py-2 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Email Address</label>
-                  <input
-                    type="email"
-                    value={regEmail}
-                    onChange={(e) => setRegEmail(e.target.value)}
-                    placeholder="name@example.com"
-                    required
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
-                  />
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Email Address</label>
+                    <input
+                      type="email"
+                      value={regEmail}
+                      onChange={(e) => setRegEmail(e.target.value)}
+                      placeholder="john@example.com"
+                      required
+                      className="w-full px-3 py-2 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Phone Number</label>
+                    <input
+                      type="tel"
+                      value={regPhone}
+                      onChange={(e) => setRegPhone(e.target.value)}
+                      placeholder="+1 (555) 123-4567"
+                      required
+                      className="w-full px-3 py-2 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2.5">
@@ -713,7 +835,7 @@ export default function App() {
                       onChange={(e) => setRegPassword(e.target.value)}
                       placeholder="Min. 6 chars"
                       required
-                      className="w-full px-3 py-2.5 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
+                      className="w-full px-3 py-2 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
                     />
                   </div>
                   <div>
@@ -722,9 +844,9 @@ export default function App() {
                       type="password"
                       value={regConfirmPassword}
                       onChange={(e) => setRegConfirmPassword(e.target.value)}
-                      placeholder="Confirm"
+                      placeholder="Confirm password"
                       required
-                      className="w-full px-3 py-2.5 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
+                      className="w-full px-3 py-2 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
                     />
                   </div>
                 </div>
@@ -736,7 +858,7 @@ export default function App() {
                     value={regReferral}
                     onChange={(e) => setRegReferral(e.target.value)}
                     placeholder="e.g. VIP888"
-                    className="w-full px-3.5 py-2 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
+                    className="w-full px-3 py-2 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
                   />
                 </div>
 

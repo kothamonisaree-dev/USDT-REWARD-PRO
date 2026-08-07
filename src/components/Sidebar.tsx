@@ -15,6 +15,14 @@ interface SidebarProps {
   onLogout?: () => void;
 }
 
+interface NavItem {
+  id: string;
+  label: string;
+  icon: any;
+  badge?: string;
+  highlight?: boolean;
+}
+
 export const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   onClose,
@@ -26,7 +34,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const navItems = [
+  const baseNavItems: NavItem[] = [
     { id: 'home', label: 'Home Dashboard', icon: Home },
     { id: 'trading', label: 'Live Trading Engine', icon: TrendingUp },
     { id: 'invest', label: 'Investment Packages', icon: Zap },
@@ -38,9 +46,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'support', label: '24/7 Customer Care', icon: Headphones },
     { id: 'security', label: 'Security & 2FA', icon: ShieldCheck },
     { id: 'referral', label: 'Referral & Commission', icon: Share2 },
-    { id: 'settings', label: 'Preferences & Language', icon: Settings },
-    { id: 'admin', label: 'Admin Control Suite', icon: ShieldAlert, highlight: true }
+    { id: 'settings', label: 'Preferences & Language', icon: Settings }
   ];
+
+  const isAdminRole = userRole === 'admin' || userRole === 'sub_admin';
+  const navItems = isAdminRole
+    ? [...baseNavItems, { id: 'admin', label: 'Admin Control Suite', icon: ShieldAlert, highlight: true }]
+    : baseNavItems;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex animate-in fade-in duration-200">

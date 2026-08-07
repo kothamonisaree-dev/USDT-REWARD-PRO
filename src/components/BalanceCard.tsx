@@ -80,7 +80,7 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
           <div className="text-xs text-slate-400 font-medium">Total Account Valuation</div>
           <div className="flex items-baseline gap-2">
             <span className="text-3xl sm:text-4xl font-extrabold text-gold-gradient tracking-tight font-mono">
-              ${hideBalance ? '••••••••' : wallet.usdtBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              ${hideBalance ? '••••••••' : (wallet?.usdtBalance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </span>
             <span className="text-xs font-semibold text-slate-400">USD Equivalent</span>
           </div>
@@ -90,13 +90,13 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
             <div className="bg-[#080D18]/90 border border-slate-800/80 rounded-xl p-3">
               <div className="text-[10px] text-slate-400 uppercase tracking-wider">USDT Holdings</div>
               <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">
-                {mask(`${wallet.usdtBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })} USDT`)}
+                {mask(`${(wallet?.usdtBalance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} USDT`)}
               </div>
             </div>
             <div className="bg-[#080D18]/90 border border-slate-800/80 rounded-xl p-3">
               <div className="text-[10px] text-slate-400 uppercase tracking-wider">USD Fiat Value</div>
               <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">
-                {mask(`$${wallet.usdBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`)}
+                {mask(`$${(wallet?.usdBalance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`)}
               </div>
             </div>
           </div>
