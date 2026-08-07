@@ -1,0 +1,6 @@
+{
+  "name": "USDT REWARD PRO",
+  "description": "Ultra Premium Cryptocurrency Wallet & Live Trading Platform with Binance Live Feeds, Investment Packages, Loan Management & Overdue Notice, and Reward Center.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
