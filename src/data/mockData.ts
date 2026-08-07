@@ -219,40 +219,7 @@ export const initialTransactions: TransactionItem[] = [
   }
 ];
 
-export const initialNotifications: NotificationItem[] = [
-  {
-    id: 'NT-1',
-    title: '✅ Trade Completed Successfully',
-    message: 'Congratulations! You earned +$200.00 USDT on your 90s trade.',
-    type: 'trading',
-    timestamp: '10 mins ago',
-    isRead: false
-  },
-  {
-    id: 'NT-2',
-    title: '💰 Deposit Confirmed',
-    message: 'Your deposit of $5,000.00 USDT has been credited to your account.',
-    type: 'deposit',
-    timestamp: '1 hour ago',
-    isRead: false
-  },
-  {
-    id: 'NT-3',
-    title: '🎁 Welcome Bonus Available',
-    message: 'Claim your $5.00 instant welcome bonus in the Reward Center now.',
-    type: 'announcement',
-    timestamp: '1 day ago',
-    isRead: true
-  },
-  {
-    id: 'NT-4',
-    title: '⚠️ Loan Repayment Notice',
-    message: 'Your active loan #L-99482 is currently marked as OVERDUE. Please review.',
-    type: 'system',
-    timestamp: '2 days ago',
-    isRead: false
-  }
-];
+export const initialNotifications: NotificationItem[] = [];
 
 export const initialLoanNoticeData: LoanData = {
   id: 'L-99482',

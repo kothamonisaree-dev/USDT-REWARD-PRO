@@ -176,25 +176,40 @@ export default function App() {
 
       if (matchedUser.role === 'admin') {
         setActiveTab('admin');
-        handleAddNotification(
-          '⚡ Super Admin Authenticated',
-          'Welcome to the Super Admin Control Panel, emukhan580.',
-          'announcement'
-        );
+        setNotifications([
+          {
+            id: `NT-${Date.now()}`,
+            title: '⚡ Super Admin Authenticated',
+            message: 'Welcome to the Super Admin Control Panel, emukhan580.',
+            type: 'announcement',
+            timestamp: 'Just now',
+            isRead: false
+          }
+        ]);
       } else if (matchedUser.role === 'sub_admin') {
         setActiveTab('admin');
-        handleAddNotification(
-          '🛡️ Sub-Admin Authenticated',
-          'Welcome to the Sub-Admin Read-Only Monitoring Suite.',
-          'announcement'
-        );
+        setNotifications([
+          {
+            id: `NT-${Date.now()}`,
+            title: '🛡️ Sub-Admin Authenticated',
+            message: 'Welcome to the Sub-Admin Read-Only Monitoring Suite.',
+            type: 'announcement',
+            timestamp: 'Just now',
+            isRead: false
+          }
+        ]);
       } else {
         setActiveTab('home');
-        handleAddNotification(
-          '🔐 Login Successful',
-          `Welcome back to USDT REWARD PRO VIP account, ${matchedUser.fullName}.`,
-          'system'
-        );
+        setNotifications([
+          {
+            id: `NT-${Date.now()}`,
+            title: '🔐 Login Successful',
+            message: `Welcome back to USDT REWARD PRO VIP account, ${matchedUser.fullName}.`,
+            type: 'system',
+            timestamp: 'Just now',
+            isRead: false
+          }
+        ]);
       }
     } else {
       // Dynamic login for new or custom credentials
@@ -231,11 +246,16 @@ export default function App() {
       setUserRole('user');
       setIsLoggedIn(true);
       setActiveTab('home');
-      handleAddNotification(
-        '🔐 Login Successful',
-        `Welcome to USDT REWARD PRO VIP account, ${customUser.fullName}.`,
-        'system'
-      );
+      setNotifications([
+        {
+          id: `NT-${Date.now()}`,
+          title: '🔐 Login Successful',
+          message: `Welcome to USDT REWARD PRO VIP account, ${customUser.fullName}.`,
+          type: 'system',
+          timestamp: 'Just now',
+          isRead: false
+        }
+      ]);
     }
   };
 
@@ -319,11 +339,16 @@ export default function App() {
     setRegConfirmPassword('');
     setRegReferral('');
 
-    handleAddNotification(
-      '🎉 Account Created Successfully',
-      `Welcome ${formattedName}! Your VIP Reward Wallet account is ready.`,
-      'system'
-    );
+    setNotifications([
+      {
+        id: `NT-${Date.now()}`,
+        title: '🎉 Account Created Successfully',
+        message: `Welcome ${formattedName}! Your VIP Reward Wallet account is ready.`,
+        type: 'system',
+        timestamp: 'Just now',
+        isRead: false
+      }
+    ]);
   };
 
   // Fetch Live Binance Tickers periodically
