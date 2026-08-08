@@ -56,13 +56,6 @@ export const WalletPage: React.FC<WalletPageProps> = ({
     }
     onDepositSubmit(amt, depositNetwork);
     setDepositSuccess(true);
-    setTimeout(() => setDepositSuccess(false), 4000);
-  };
-      alert('Minimum Deposit amount is $50 USD');
-      return;
-    }
-    onDepositSubmit(amt, depositNetwork);
-    setDepositSuccess(true);
     setTimeout(() => setDepositSuccess(false), 3000);
   };
 

@@ -396,7 +396,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       {/* 1. USER DIRECTORY MODULE */}
       {adminTab === 'users' && (
-        <div className="glass-gold-card p-6 space-y-5 border-2 border-[#F4C542]/40">
+        <div className="space-y-6">
+          <div className="glass-gold-card p-6 space-y-5 border-2 border-[#F4C542]/40">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
             <div>
               <h3 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
@@ -669,8 +670,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </td>
 
                   </tr>
-                ))
-              )}
+                )))
+              }
             </tbody>
           </table>
         </div>
@@ -741,6 +742,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </form>
         </div>
 
+        </div>
         </div>
       )}
 

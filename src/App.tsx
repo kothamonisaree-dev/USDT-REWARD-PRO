@@ -72,6 +72,27 @@ export default function App() {
   const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
   const [loan, setLoan] = useState<LoanData>(initialLoanNoticeData);
 
+  // Platform Config States (Admin Controlled)
+  const [plansList, setPlansList] = useState<InvestmentPlan[]>(investmentPlans);
+  const [customerCareConfig, setCustomerCareConfig] = useState({
+    telegram: '@USDTRewardProSupport',
+    whatsapp: '+1 (800) 555-0199',
+    email: 'support@usdtpro.com'
+  });
+  const [walletConfig, setWalletConfig] = useState({
+    trc20Address: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+    minDeposit: 50
+  });
+  const [bonusConfig, setBonusConfig] = useState({
+    dailyReward: 5.00,
+    welcomeBonus: 5.00
+  });
+  const [referralConfig, setReferralConfig] = useState({
+    tier1: 10,
+    tier2: 5,
+    tier3: 2
+  });
+
   // KYC Requests State
   const [kycRequests, setKycRequests] = useState<KycRequestData[]>([
     {
@@ -999,7 +1020,7 @@ export default function App() {
         {activeTab === 'invest' && (
           <div className="animate-in fade-in duration-300">
             <InvestmentPackages
-              plans={investmentPlans}
+              plans={plansList}
               wallet={wallet}
               activeInvestment={activeInvestment}
               onStartInvestment={handleStartInvestment}
@@ -1016,6 +1037,7 @@ export default function App() {
               transactions={transactions}
               onDepositSubmit={handleDepositSubmit}
               onWithdrawSubmit={handleWithdrawSubmit}
+              walletConfig={walletConfig}
             />
           </div>
         )}
@@ -1031,6 +1053,10 @@ export default function App() {
         {activeTab === 'bonus' && (
           <div className="animate-in fade-in duration-300">
             <BonusRewardCenter
+              bonusConfig={{
+                dailyReward: bonusConfig.dailyReward,
+                welcomeBonus: bonusConfig.welcomeBonus
+              }}
               onClaimWelcomeBonus={(amt) => {
                 handleDepositSubmit(amt, 'USDT (Welcome Bonus)');
               }}
@@ -1065,7 +1091,7 @@ export default function App() {
         {/* CUSTOMER SUPPORT */}
         {activeTab === 'support' && (
           <div className="animate-in fade-in duration-300">
-            <CustomerSupport />
+            <CustomerSupport config={customerCareConfig} />
           </div>
         )}
 
@@ -1079,7 +1105,7 @@ export default function App() {
         {/* REFERRAL PROGRAM */}
         {activeTab === 'referral' && (
           <div className="animate-in fade-in duration-300">
-            <ReferralSystem referralCode={user.referralCode} />
+            <ReferralSystem referralCode={user.referralCode} config={referralConfig} />
           </div>
         )}
 
@@ -1100,6 +1126,11 @@ export default function App() {
               kycRequests={kycRequests}
               transactions={transactions}
               usersList={usersList}
+              plansList={plansList}
+              customerCareConfig={customerCareConfig}
+              walletConfig={walletConfig}
+              bonusConfig={bonusConfig}
+              referralConfig={referralConfig}
               onUpdateWalletBalance={(newBal) => {
                 setWallet(prev => ({
                   ...prev,
@@ -1119,6 +1150,12 @@ export default function App() {
               onChangeUserVip={handleChangeUserVip}
               onChangeUserRole={handleChangeUserRole}
               onAddNewUser={handleAddNewUser}
+              onUpdateInvestmentPlans={(updatedPlans) => setPlansList(updatedPlans)}
+              onUpdateCustomerCareConfig={(updatedCare) => setCustomerCareConfig(updatedCare)}
+              onUpdateWalletConfig={(updatedWallet) => setWalletConfig(updatedWallet)}
+              onUpdateBonusConfig={(updatedBonus) => setBonusConfig(updatedBonus)}
+              onUpdateReferralConfig={(updatedRef) => setReferralConfig(updatedRef)}
+              onUpdateLoanNotice={(updatedLoan) => setLoan(updatedLoan)}
             />
           </div>
         )}
