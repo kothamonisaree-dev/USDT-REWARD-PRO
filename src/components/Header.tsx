@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, Bell, X, ArrowRight, Clock, LogOut } from 'lucide-react';
 import { NotificationItem, UserRole } from '../types';
+import logoImg from '../assets/images/usdt_reward_pro_logo_1786228642395.jpg';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -65,10 +66,13 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={() => onNavigate('home')}
           className="flex items-center gap-2.5 cursor-pointer group"
         >
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#B8860B] via-[#F4C542] to-[#FFD700] p-0.5 shadow-[0_0_15px_rgba(244,197,66,0.4)] group-hover:scale-105 transition-transform duration-300 flex items-center justify-center">
-            <div className="w-full h-full bg-[#050505] rounded-[10px] flex items-center justify-center">
-              <span className="text-[#F4C542] font-extrabold text-lg leading-none">₮</span>
-            </div>
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#B8860B] via-[#F4C542] to-[#FFD700] p-0.5 shadow-[0_0_15px_rgba(244,197,66,0.4)] group-hover:scale-105 transition-transform duration-300 flex items-center justify-center overflow-hidden">
+            <img 
+              src={logoImg} 
+              alt="USDT REWARD PRO Logo" 
+              className="w-full h-full object-cover rounded-[10px]" 
+              referrerPolicy="no-referrer"
+            />
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">

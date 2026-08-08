@@ -47,6 +47,7 @@ import { Sidebar } from './components/Sidebar';
 import { BottomNav } from './components/BottomNav';
 import { LandingPage } from './components/LandingPage';
 import { X } from 'lucide-react';
+import logoImg from './assets/images/usdt_reward_pro_logo_1786228642395.jpg';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavigationTab>('home');
@@ -752,10 +753,13 @@ export default function App() {
 
               {/* Header Brand */}
               <div className="text-center space-y-2">
-                <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-[#B8860B] via-[#F4C542] to-[#FFD700] p-0.5 shadow-[0_0_20px_rgba(244,197,66,0.3)] flex items-center justify-center">
-                  <div className="w-full h-full bg-[#050505] rounded-[14px] flex items-center justify-center">
-                    <span className="text-[#F4C542] font-black text-2xl">₮</span>
-                  </div>
+                <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-tr from-[#B8860B] via-[#F4C542] to-[#FFD700] p-0.5 shadow-[0_0_20px_rgba(244,197,66,0.3)] flex items-center justify-center overflow-hidden">
+                  <img 
+                    src={logoImg} 
+                    alt="USDT REWARD PRO Logo" 
+                    className="w-full h-full object-cover rounded-[14px]" 
+                    referrerPolicy="no-referrer"
+                  />
                 </div>
                 <h2 className="text-xl font-extrabold text-slate-100">USDT REWARD PRO</h2>
                 <p className="text-xs text-slate-400">
@@ -1205,8 +1209,13 @@ export default function App() {
       <footer className="border-t border-slate-800/80 mt-12 py-6 bg-[#050505] text-slate-500 text-xs">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-[#F4C542] text-black font-extrabold flex items-center justify-center text-xs">
-              ₮
+            <div className="w-7 h-7 rounded-lg overflow-hidden border border-[#F4C542]/40 flex items-center justify-center">
+              <img 
+                src={logoImg} 
+                alt="USDT REWARD PRO Logo" 
+                className="w-full h-full object-cover" 
+                referrerPolicy="no-referrer"
+              />
             </div>
             <span className="font-extrabold text-slate-300">USDT REWARD PRO</span>
             <span className="text-[10px] text-slate-500">• Ultra High-Yield Exchange Platform</span>

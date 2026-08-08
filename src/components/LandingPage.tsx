@@ -5,6 +5,7 @@ import {
   BarChart3, Globe, Gift, Landmark, Share2, Wallet, LogIn, UserPlus
 } from 'lucide-react';
 import { InvestmentPlan } from '../types';
+import logoImg from '../assets/images/usdt_reward_pro_logo_1786228642395.jpg';
 
 interface LandingPageProps {
   onOpenAuth: (mode: 'signin' | 'register') => void;
@@ -63,10 +64,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           
           {/* Logo & Brand */}
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#B8860B] via-[#F4C542] to-[#FFD700] p-0.5 shadow-[0_0_15px_rgba(244,197,66,0.3)] flex items-center justify-center">
-              <div className="w-full h-full bg-[#050505] rounded-[14px] flex items-center justify-center">
-                <span className="text-[#F4C542] font-black text-xl">₮</span>
-              </div>
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#B8860B] via-[#F4C542] to-[#FFD700] p-0.5 shadow-[0_0_15px_rgba(244,197,66,0.3)] flex items-center justify-center overflow-hidden">
+              <img 
+                src={logoImg} 
+                alt="USDT REWARD PRO Logo" 
+                className="w-full h-full object-cover rounded-[14px]" 
+                referrerPolicy="no-referrer"
+              />
             </div>
             <div>
               <span className="text-lg font-black tracking-tight text-white flex items-center gap-2">
@@ -533,8 +537,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           
           <div className="flex flex-col md:flex-row items-center justify-between gap-6 border-b border-slate-800 pb-8">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-[#F4C542]/20 border border-[#F4C542]/40 flex items-center justify-center text-[#F4C542] font-black">
-                ₮
+              <div className="w-10 h-10 rounded-xl overflow-hidden border border-[#F4C542]/40 shadow-md flex items-center justify-center">
+                <img 
+                  src={logoImg} 
+                  alt="USDT REWARD PRO Logo" 
+                  className="w-full h-full object-cover" 
+                  referrerPolicy="no-referrer"
+                />
               </div>
               <span className="font-extrabold text-slate-100 text-sm">USDT REWARD PRO VIP</span>
             </div>

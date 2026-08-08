@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavigationTab, UserRole, UserProfile } from '../types';
+import logoImg from '../assets/images/usdt_reward_pro_logo_1786228642395.jpg';
 import { 
   Home, TrendingUp, Zap, Wallet, User, Gift, LandPlot, Headphones, 
   ShieldCheck, Share2, Settings, ShieldAlert, X, AlertTriangle, ChevronRight, Crown, LogOut,
@@ -81,8 +82,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* Top Bar */}
           <div className="flex items-center justify-between pb-4 border-b border-slate-800">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#B8860B] to-[#FFD700] p-0.5 shadow-md flex items-center justify-center font-bold text-black">
-                ₮
+              <div className="w-8 h-8 rounded-xl overflow-hidden border border-[#F4C542]/40 shadow-md flex items-center justify-center">
+                <img 
+                  src={logoImg} 
+                  alt="USDT REWARD PRO Logo" 
+                  className="w-full h-full object-cover" 
+                  referrerPolicy="no-referrer"
+                />
               </div>
               <span className="font-extrabold text-sm tracking-wider text-slate-100">
                 USDT REWARD <span className="text-gold-gradient">PRO</span>
