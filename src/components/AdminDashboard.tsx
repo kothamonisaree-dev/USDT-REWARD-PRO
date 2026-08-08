@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserRole, WalletState, LoanData, KycRequestData, TransactionItem, ManagedUser, InvestmentPlan } from '../types';
 import { 
   ShieldCheck, Users, Wallet, DollarSign, AlertTriangle, Send, RefreshCw, Award, CheckCircle2, 
@@ -25,6 +25,8 @@ interface AdminDashboardProps {
   onChangeUserVip: (userId: string, vipLevel: number) => void;
   onChangeUserRole: (userId: string, role: UserRole) => void;
   onAddNewUser: (newUser: ManagedUser) => void;
+
+  initialTab?: string;
 
   // Configuration Props & Callbacks for total admin control
   plansList?: InvestmentPlan[];
@@ -58,6 +60,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onChangeUserVip,
   onChangeUserRole,
   onAddNewUser,
+  initialTab = 'users',
   plansList = [],
   onUpdateInvestmentPlans,
   customerCareConfig = { telegram: '@USDTRewardProSupport', whatsapp: '+1 (800) 555-0199', email: 'support@usdtpro.com' },
@@ -70,7 +73,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onUpdateReferralConfig,
   onUpdateLoanNotice
 }) => {
-  const [adminTab, setAdminTab] = useState<'users' | 'approvals' | 'kyc' | 'invest_plans' | 'deposit_wallet' | 'bonus_center' | 'loan_system' | 'referral' | 'customer_care' | 'broadcast'>('users');
+  const [adminTab, setAdminTab] = useState<'users' | 'approvals' | 'kyc' | 'invest_plans' | 'deposit_wallet' | 'bonus_center' | 'loan_system' | 'loan_notice' | 'referral' | 'customer_care' | 'broadcast'>(initialTab as any || 'users');
+
+  useEffect(() => {
+    if (initialTab) {
+      setAdminTab(initialTab as any);
+    }
+  }, [initialTab]);
 
   const [balanceInput, setBalanceInput] = useState(wallet.usdtBalance.toString());
   const [broadcastTitle, setBroadcastTitle] = useState('');
@@ -366,13 +375,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {[
           { id: 'users', label: 'User Directory', icon: Users },
           { id: 'approvals', label: 'Fund Approvals', icon: CheckCircle2 },
-          { id: 'kyc', label: 'KYC Review', icon: Award },
-          { id: 'invest_plans', label: 'Investment Plans', icon: TrendingUp },
-          { id: 'deposit_wallet', label: 'Deposit Wallet', icon: Wallet },
-          { id: 'bonus_center', label: 'Bonus Rewards', icon: Gift },
-          { id: 'loan_system', label: 'Loan System', icon: Landmark },
-          { id: 'referral', label: 'Referral Rates', icon: Share2 },
-          { id: 'customer_care', label: 'Customer Care', icon: Headphones },
+          { id: 'kyc', label: 'KYC Document Review', icon: Award },
+          { id: 'invest_plans', label: 'Investment Plans Edit', icon: TrendingUp },
+          { id: 'deposit_wallet', label: 'Deposit Wallet Edit', icon: Wallet },
+          { id: 'bonus_center', label: 'Bonus Rewards Edit', icon: Gift },
+          { id: 'loan_system', label: 'Loan System Edit', icon: Landmark },
+          { id: 'loan_notice', label: 'Official Loan Notice Edit', icon: AlertTriangle },
+          { id: 'referral', label: 'Referral Commission Edit', icon: Share2 },
+          { id: 'customer_care', label: '24/7 Customer Care Edit', icon: Headphones },
           { id: 'broadcast', label: 'Broadcast Alerts', icon: Send }
         ].map(tab => {
           const Icon = tab.icon;
@@ -1221,6 +1231,111 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 >
                   {editLoan.isOverdue ? '🚨 OVERDUE NOTICE ACTIVE (Click to Clear)' : '✅ CLEAN / ACTIVE LOAN (Click to Set Overdue)'}
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 7.5. OFFICIAL LOAN NOTICE TAB */}
+      {adminTab === 'loan_notice' && (
+        <div className="glass-gold-card p-6 space-y-6 border-2 border-[#F4C542]/40">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-red-500" /> Edit Official Loan Repayment Notice
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Configure loan overdue warning status, borrower case details, and repayment countdown timer.
+              </p>
+            </div>
+            <button
+              onClick={handleSaveLoanNotice}
+              className="px-4 py-2.5 btn-gold-gradient text-black font-extrabold text-xs flex items-center gap-2 rounded-xl"
+            >
+              <Save className="w-4 h-4" /> Save Official Notice Settings
+            </button>
+          </div>
+
+          <div className="space-y-4 max-w-2xl bg-[#080D18] p-4 rounded-xl border border-slate-800">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <span className="text-xs font-bold text-slate-300">Notice Overdue Status Banner</span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (checkSubAdminGuard()) return;
+                  setEditLoan({ ...editLoan, isOverdue: !editLoan.isOverdue, status: !editLoan.isOverdue ? 'overdue' : 'active' });
+                }}
+                className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 ${
+                  editLoan.isOverdue
+                    ? 'bg-red-600 text-white shadow-lg shadow-red-600/30'
+                    : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                }`}
+              >
+                {editLoan.isOverdue ? '🚨 OVERDUE WARNING ACTIVE (User Sees Overdue Badge)' : '✅ NORMAL LOAN NOTICE (No Overdue Red Warning)'}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Borrower Full Name</label>
+                <input
+                  type="text"
+                  value={editLoan.borrowerName}
+                  onChange={(e) => setEditLoan({ ...editLoan, borrowerName: e.target.value })}
+                  className="w-full bg-[#0D121F] border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Borrower Username / ID</label>
+                <input
+                  type="text"
+                  value={editLoan.username}
+                  onChange={(e) => setEditLoan({ ...editLoan, username: e.target.value })}
+                  className="w-full bg-[#0D121F] border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Principal Amount ($ USDT)</label>
+                <input
+                  type="number"
+                  value={editLoan.principalAmount}
+                  onChange={(e) => setEditLoan({ ...editLoan, principalAmount: parseFloat(e.target.value) || 0 })}
+                  className="w-full bg-[#0D121F] border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Daily Interest Rate (%)</label>
+                <input
+                  type="number"
+                  value={editLoan.interestRate}
+                  onChange={(e) => setEditLoan({ ...editLoan, interestRate: parseFloat(e.target.value) || 0 })}
+                  className="w-full bg-[#0D121F] border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Repayment Due Date</label>
+                <input
+                  type="text"
+                  value={editLoan.dueDate}
+                  onChange={(e) => setEditLoan({ ...editLoan, dueDate: e.target.value })}
+                  placeholder="2026-08-01T00:00:00"
+                  className="w-full bg-[#0D121F] border border-slate-700 rounded-xl px-3 py-2 text-xs text-amber-400 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Borrower Phone</label>
+                <input
+                  type="text"
+                  value={editLoan.phone}
+                  onChange={(e) => setEditLoan({ ...editLoan, phone: e.target.value })}
+                  className="w-full bg-[#0D121F] border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100"
+                />
               </div>
             </div>
           </div>

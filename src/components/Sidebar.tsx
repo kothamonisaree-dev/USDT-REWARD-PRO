@@ -15,15 +15,16 @@ interface SidebarProps {
   user?: UserProfile;
   unreadNotifications: number;
   onLogout?: () => void;
+  onSelectAdminTab?: (adminSubTab: string) => void;
 }
 
 interface NavItem {
   id: NavigationTab;
+  adminSubTab?: string;
   label: string;
   icon: any;
   badge?: string;
   highlight?: boolean;
-  isAdminOnly?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -34,19 +35,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
   userRole,
   user,
   unreadNotifications,
-  onLogout
+  onLogout,
+  onSelectAdminTab
 }) => {
   if (!isOpen) return null;
 
   const isAdminRole = userRole === 'admin' || userRole === 'sub_admin';
 
   const adminNavItems: NavItem[] = [
-    { id: 'admin', label: 'Admin Control Suite', icon: ShieldAlert, highlight: true },
-    { id: 'admin', label: 'User Management Directory', icon: Users, badge: 'USERS' },
-    { id: 'admin', label: 'Deposit & Withdraw Approvals', icon: CheckSquare, badge: 'APPROVALS' },
-    { id: 'admin', label: 'KYC Document Verification', icon: FileCheck, badge: 'KYC' },
-    { id: 'admin', label: 'Global Broadcast Alerts', icon: Megaphone },
-    { id: 'admin', label: 'System Vault & Liquidity', icon: Landmark }
+    { id: 'admin', adminSubTab: 'users', label: 'User Directory', icon: Users, badge: 'USERS' },
+    { id: 'admin', adminSubTab: 'approvals', label: 'Fund Approvals', icon: CheckSquare, badge: 'APPROVALS' },
+    { id: 'admin', adminSubTab: 'kyc', label: 'KYC Document Review', icon: FileCheck, badge: 'KYC' },
+    { id: 'admin', adminSubTab: 'invest_plans', label: 'Investment Plans Edit', icon: Zap },
+    { id: 'admin', adminSubTab: 'deposit_wallet', label: 'Deposit Wallet Edit', icon: Wallet },
+    { id: 'admin', adminSubTab: 'bonus_center', label: 'Bonus Reward Edit', icon: Gift },
+    { id: 'admin', adminSubTab: 'loan_system', label: 'Crypto Loan System Edit', icon: LandPlot },
+    { id: 'admin', adminSubTab: 'loan_notice', label: 'Official Loan Notice Edit', icon: AlertTriangle, badge: 'OVERDUE' },
+    { id: 'admin', adminSubTab: 'referral', label: 'Referral Commission Edit', icon: Share2 },
+    { id: 'admin', adminSubTab: 'customer_care', label: '24/7 Customer Care Edit', icon: Headphones },
+    { id: 'admin', adminSubTab: 'broadcast', label: 'Global Broadcast Alerts', icon: Megaphone }
   ];
 
   const baseNavItems: NavItem[] = [
@@ -141,26 +148,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               {adminNavItems.map((item, idx) => {
                 const IconComp = item.icon;
-                const isActive = activeTab === 'admin' && idx === 0;
                 return (
                   <button
                     key={`admin-${idx}`}
                     onClick={() => {
                       onNavigate('admin');
+                      if (item.adminSubTab && onSelectAdminTab) {
+                        onSelectAdminTab(item.adminSubTab);
+                      }
                       onClose();
                     }}
-                    className={`w-full flex items-center justify-between p-2.5 rounded-xl font-bold text-xs transition-all ${
-                      isActive
-                        ? 'bg-[#F4C542] text-black shadow-md shadow-[#F4C542]/20'
-                        : 'text-[#F4C542] hover:bg-[#F4C542]/15 hover:text-slate-100'
-                    }`}
+                    className="w-full flex items-center justify-between p-2 rounded-xl font-bold text-xs transition-all text-[#F4C542] hover:bg-[#F4C542]/15 hover:text-slate-100"
                   >
                     <div className="flex items-center gap-2.5">
                       <IconComp className="w-4 h-4 shrink-0" />
-                      <span>{item.label}</span>
+                      <span className="truncate">{item.label}</span>
                     </div>
                     {item.badge && (
-                      <span className="px-1.5 py-0.5 rounded text-[8px] font-extrabold bg-black/40 text-[#F4C542] border border-[#F4C542]/30">
+                      <span className="px-1.5 py-0.5 rounded text-[8px] font-extrabold bg-black/40 text-[#F4C542] border border-[#F4C542]/30 shrink-0">
                         {item.badge}
                       </span>
                     )}

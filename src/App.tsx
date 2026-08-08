@@ -92,6 +92,7 @@ export default function App() {
     tier2: 5,
     tier3: 2
   });
+  const [adminSubTab, setAdminSubTab] = useState<string>('users');
 
   // KYC Requests State
   const [kycRequests, setKycRequests] = useState<KycRequestData[]>([
@@ -740,6 +741,7 @@ export default function App() {
         user={user}
         unreadNotifications={notifications.filter(n => !n.isRead).length}
         onLogout={handleLogout}
+        onSelectAdminTab={(subTab) => setAdminSubTab(subTab)}
       />
 
       {/* Logged Out Login / Register Modal Overlay */}
@@ -1127,6 +1129,7 @@ export default function App() {
               transactions={transactions}
               usersList={usersList}
               plansList={plansList}
+              initialTab={adminSubTab}
               customerCareConfig={customerCareConfig}
               walletConfig={walletConfig}
               bonusConfig={bonusConfig}
