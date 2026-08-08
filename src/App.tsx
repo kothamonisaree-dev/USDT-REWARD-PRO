@@ -716,6 +716,7 @@ export default function App() {
         activeTab={activeTab}
         onNavigate={setActiveTab}
         userRole={userRole}
+        user={user}
         unreadNotifications={notifications.filter(n => !n.isRead).length}
         onLogout={handleLogout}
       />

@@ -7,14 +7,22 @@ interface WalletPageProps {
   transactions: TransactionItem[];
   onDepositSubmit: (amount: number, asset: string) => void;
   onWithdrawSubmit: (amount: number, asset: string, address: string) => void;
+  walletConfig?: {
+    trc20Address: string;
+    minDeposit: number;
+  };
 }
 
 export const WalletPage: React.FC<WalletPageProps> = ({
   wallet,
   transactions,
   onDepositSubmit,
-  onWithdrawSubmit
+  onWithdrawSubmit,
+  walletConfig
 }) => {
+  const displayAddress = walletConfig?.trc20Address || wallet.walletAddress;
+  const minDepositVal = walletConfig?.minDeposit || 50;
+
   const [activeTab, setActiveTab] = useState<'deposit' | 'withdraw' | 'transfer' | 'history'>('deposit');
 
   // Deposit form state
@@ -35,14 +43,21 @@ export const WalletPage: React.FC<WalletPageProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(wallet.walletAddress);
+    navigator.clipboard.writeText(displayAddress);
     setCopiedAddr(true);
     setTimeout(() => setCopiedAddr(false), 2000);
   };
 
   const handleDepositConfirm = () => {
     const amt = parseFloat(depositAmount);
-    if (isNaN(amt) || amt < 50) {
+    if (isNaN(amt) || amt < minDepositVal) {
+      alert(`Minimum deposit required is $${minDepositVal.toFixed(2)} USDT.`);
+      return;
+    }
+    onDepositSubmit(amt, depositNetwork);
+    setDepositSuccess(true);
+    setTimeout(() => setDepositSuccess(false), 4000);
+  };
       alert('Minimum Deposit amount is $50 USD');
       return;
     }
@@ -150,14 +165,14 @@ export const WalletPage: React.FC<WalletPageProps> = ({
                 placeholder="Minimum $50 USD"
                 className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 font-mono focus:border-[#F4C542] focus:outline-none"
               />
-              <span className="text-[11px] text-[#F4C542] mt-1 block">Minimum deposit required: $50.00</span>
+              <span className="text-[11px] text-[#F4C542] mt-1 block">Minimum deposit required: ${minDepositVal.toFixed(2)}</span>
             </div>
 
             {/* Deposit Address Box */}
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">Your Deposit Address</label>
               <div className="flex items-center gap-2 p-3 rounded-xl bg-[#080D18] border border-[#F4C542]/30">
-                <span className="font-mono text-xs text-slate-200 truncate flex-1">{wallet.walletAddress}</span>
+                <span className="font-mono text-xs text-slate-200 truncate flex-1">{displayAddress}</span>
                 <button
                   onClick={handleCopy}
                   className="px-3 py-1.5 rounded-lg btn-gold-gradient text-xs font-bold shrink-0 flex items-center gap-1"

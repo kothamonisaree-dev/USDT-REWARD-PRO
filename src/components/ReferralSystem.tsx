@@ -3,9 +3,18 @@ import { Share2, Copy, Check, Users, DollarSign, Network } from 'lucide-react';
 
 interface ReferralSystemProps {
   referralCode: string;
+  config?: {
+    tier1: number;
+    tier2: number;
+    tier3: number;
+  };
 }
 
-export const ReferralSystem: React.FC<ReferralSystemProps> = ({ referralCode }) => {
+export const ReferralSystem: React.FC<ReferralSystemProps> = ({ referralCode, config }) => {
+  const t1 = config?.tier1 ?? 10;
+  const t2 = config?.tier2 ?? 5;
+  const t3 = config?.tier3 ?? 2;
+
   const [copied, setCopied] = useState(false);
   const refLink = `https://usdtrewardpro.com/ref/${referralCode}`;
 
@@ -62,7 +71,7 @@ export const ReferralSystem: React.FC<ReferralSystemProps> = ({ referralCode }) 
         <div className="glass-gold-card p-5 text-center">
           <Network className="w-6 h-6 text-blue-400 mx-auto mb-1" />
           <span className="text-xs text-slate-400 block">Commission Tiers</span>
-          <span className="text-xs font-bold text-slate-200 font-mono">Level 1 (10%) • L2 (5%) • L3 (2%)</span>
+          <span className="text-xs font-bold text-slate-200 font-mono">Level 1 ({t1}%) • L2 ({t2}%) • L3 ({t3}%)</span>
         </div>
       </div>
 
@@ -72,15 +81,15 @@ export const ReferralSystem: React.FC<ReferralSystemProps> = ({ referralCode }) 
         <div className="divide-y divide-slate-800 text-xs font-mono">
           <div className="py-2.5 flex justify-between">
             <span>Tier 1 (Direct Referrals):</span>
-            <span className="font-bold text-[#F4C542]">10% of trading yield fee</span>
+            <span className="font-bold text-[#F4C542]">{t1}% of trading yield fee</span>
           </div>
           <div className="py-2.5 flex justify-between">
             <span>Tier 2 (Secondary Referrals):</span>
-            <span className="font-bold text-slate-300">5% of trading yield fee</span>
+            <span className="font-bold text-slate-300">{t2}% of trading yield fee</span>
           </div>
           <div className="py-2.5 flex justify-between">
             <span>Tier 3 (Extended Network):</span>
-            <span className="font-bold text-slate-400">2% of trading yield fee</span>
+            <span className="font-bold text-slate-400">{t3}% of trading yield fee</span>
           </div>
         </div>
       </div>

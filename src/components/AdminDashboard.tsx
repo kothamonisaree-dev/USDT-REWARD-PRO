@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
-import { UserRole, WalletState, LoanData, KycRequestData, TransactionItem, ManagedUser } from '../types';
-import { ShieldCheck, Users, Wallet, DollarSign, AlertTriangle, Send, RefreshCw, Award, CheckCircle2, XCircle, Eye, FileText, Camera, Clock, X, ArrowDownLeft, ArrowUpRight, Search, Filter, Edit3, Ban, UserCheck, Crown, Plus, UserPlus, Sliders, ShieldAlert } from 'lucide-react';
+import { UserRole, WalletState, LoanData, KycRequestData, TransactionItem, ManagedUser, InvestmentPlan } from '../types';
+import { 
+  ShieldCheck, Users, Wallet, DollarSign, AlertTriangle, Send, RefreshCw, Award, CheckCircle2, 
+  XCircle, Eye, FileText, Camera, Clock, X, ArrowDownLeft, ArrowUpRight, Search, Filter, Edit3, 
+  Ban, UserCheck, Crown, Plus, UserPlus, Sliders, ShieldAlert, Headphones, MessageCircle, Gift, 
+  TrendingUp, Landmark, Share2, Save
+} from 'lucide-react';
 
 interface AdminDashboardProps {
   currentRole: UserRole;
@@ -20,6 +25,19 @@ interface AdminDashboardProps {
   onChangeUserVip: (userId: string, vipLevel: number) => void;
   onChangeUserRole: (userId: string, role: UserRole) => void;
   onAddNewUser: (newUser: ManagedUser) => void;
+
+  // Configuration Props & Callbacks for total admin control
+  plansList?: InvestmentPlan[];
+  onUpdateInvestmentPlans?: (plans: InvestmentPlan[]) => void;
+  customerCareConfig?: { telegram: string; whatsapp: string; email: string };
+  onUpdateCustomerCareConfig?: (config: { telegram: string; whatsapp: string; email: string }) => void;
+  walletConfig?: { trc20Address: string; minDeposit: number };
+  onUpdateWalletConfig?: (config: { trc20Address: string; minDeposit: number }) => void;
+  bonusConfig?: { dailyReward: number; welcomeBonus: number };
+  onUpdateBonusConfig?: (config: { dailyReward: number; welcomeBonus: number }) => void;
+  referralConfig?: { tier1: number; tier2: number; tier3: number };
+  onUpdateReferralConfig?: (config: { tier1: number; tier2: number; tier3: number }) => void;
+  onUpdateLoanNotice?: (updatedLoan: LoanData) => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -39,12 +57,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onChangeUserStatus,
   onChangeUserVip,
   onChangeUserRole,
-  onAddNewUser
+  onAddNewUser,
+  plansList = [],
+  onUpdateInvestmentPlans,
+  customerCareConfig = { telegram: '@USDTRewardProSupport', whatsapp: '+1 (800) 555-0199', email: 'support@usdtpro.com' },
+  onUpdateCustomerCareConfig,
+  walletConfig = { trc20Address: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F', minDeposit: 50 },
+  onUpdateWalletConfig,
+  bonusConfig = { dailyReward: 5.00, welcomeBonus: 5.00 },
+  onUpdateBonusConfig,
+  referralConfig = { tier1: 10, tier2: 5, tier3: 2 },
+  onUpdateReferralConfig,
+  onUpdateLoanNotice
 }) => {
+  const [adminTab, setAdminTab] = useState<'users' | 'approvals' | 'kyc' | 'invest_plans' | 'deposit_wallet' | 'bonus_center' | 'loan_system' | 'referral' | 'customer_care' | 'broadcast'>('users');
+
   const [balanceInput, setBalanceInput] = useState(wallet.usdtBalance.toString());
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [broadcastSent, setBroadcastSent] = useState(false);
+
+  // Editable local states
+  const [editPlans, setEditPlans] = useState<InvestmentPlan[]>(plansList.length > 0 ? plansList : [
+    { id: 'p1', title: '90s Ultra Express Yield', durationSeconds: 90, profitPercentage: 20, minInvestment: 50, maxInvestment: 10000, description: 'High frequency automated liquidity arbitrage' },
+    { id: 'p2', title: '180s High Yield Staking', durationSeconds: 180, profitPercentage: 35, minInvestment: 100, maxInvestment: 25000, description: 'DeFi yield farming liquidity pool' },
+    { id: 'p3', title: '300s VIP Institutional Pool', durationSeconds: 300, profitPercentage: 50, minInvestment: 500, maxInvestment: 100000, description: 'Direct algorithmic flash loan arbitrage' }
+  ]);
+
+  const [editWalletAddress, setEditWalletAddress] = useState(walletConfig.trc20Address);
+  const [editMinDeposit, setEditMinDeposit] = useState(walletConfig.minDeposit.toString());
+
+  const [editTelegram, setEditTelegram] = useState(customerCareConfig.telegram);
+  const [editWhatsapp, setEditWhatsapp] = useState(customerCareConfig.whatsapp);
+  const [editEmail, setEditEmail] = useState(customerCareConfig.email);
+
+  const [editDailyBonus, setEditDailyBonus] = useState(bonusConfig.dailyReward.toString());
+  const [editWelcomeBonus, setEditWelcomeBonus] = useState(bonusConfig.welcomeBonus.toString());
+
+  const [editTier1, setEditTier1] = useState(referralConfig.tier1.toString());
+  const [editTier2, setEditTier2] = useState(referralConfig.tier2.toString());
+  const [editTier3, setEditTier3] = useState(referralConfig.tier3.toString());
+
+  const [editLoan, setEditLoan] = useState<LoanData>(loan);
 
   // Selected KYC Modal
   const [selectedKyc, setSelectedKyc] = useState<KycRequestData | null>(null);
@@ -207,6 +261,66 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  const handleSaveInvestmentPlans = () => {
+    if (checkSubAdminGuard()) return;
+    if (onUpdateInvestmentPlans) {
+      onUpdateInvestmentPlans(editPlans);
+      alert('✅ Investment Plans successfully updated across platform!');
+    }
+  };
+
+  const handleSaveWalletConfig = () => {
+    if (checkSubAdminGuard()) return;
+    const minDep = parseFloat(editMinDeposit);
+    if (isNaN(minDep) || !editWalletAddress) {
+      alert('Please provide valid wallet address and minimum deposit amount.');
+      return;
+    }
+    if (onUpdateWalletConfig) {
+      onUpdateWalletConfig({ trc20Address: editWalletAddress, minDeposit: minDep });
+      alert('✅ Deposit Wallet & Address configuration saved!');
+    }
+  };
+
+  const handleSaveCustomerCare = () => {
+    if (checkSubAdminGuard()) return;
+    if (onUpdateCustomerCareConfig) {
+      onUpdateCustomerCareConfig({ telegram: editTelegram, whatsapp: editWhatsapp, email: editEmail });
+      alert('✅ 24/7 Customer Care channels updated!');
+    }
+  };
+
+  const handleSaveBonusConfig = () => {
+    if (checkSubAdminGuard()) return;
+    const daily = parseFloat(editDailyBonus);
+    const welcome = parseFloat(editWelcomeBonus);
+    if (isNaN(daily) || isNaN(welcome)) return;
+    if (onUpdateBonusConfig) {
+      onUpdateBonusConfig({ dailyReward: daily, welcomeBonus: welcome });
+      alert('✅ Bonus Reward Center settings saved!');
+    }
+  };
+
+  const handleSaveReferralConfig = () => {
+    if (checkSubAdminGuard()) return;
+    const t1 = parseFloat(editTier1);
+    const t2 = parseFloat(editTier2);
+    const t3 = parseFloat(editTier3);
+    if (isNaN(t1) || isNaN(t2) || isNaN(t3)) return;
+    if (onUpdateReferralConfig) {
+      onUpdateReferralConfig({ tier1: t1, tier2: t2, tier3: t3 });
+      alert('✅ Referral Commission rates saved!');
+    }
+  };
+
+  const handleSaveLoanNotice = () => {
+    if (checkSubAdminGuard()) return;
+    if (onUpdateLoanNotice) {
+      onUpdateLoanNotice(editLoan);
+      alert('✅ Loan System & Official Repayment Notice updated!');
+    }
+  };
+
   return (
     <div className="my-6 space-y-6 max-w-5xl mx-auto">
       
@@ -220,12 +334,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             ⚡ {isSubAdmin ? 'Sub-Admin Workspace (View Only)' : 'Super Admin Management Suite'}
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Manage platform members, edit user balances, override loan statuses, review KYC, and approve deposit/withdraw requests.
+            Full platform control suite: User management, Investment Plans, Deposit Wallet, Customer Care, Loan Notices, Bonus Rewards, and Referral Rates.
           </p>
         </div>
 
-        <div className="px-3 py-1.5 rounded-xl bg-[#F4C542] text-black font-extrabold text-xs uppercase tracking-widest">
-          Active Role: {currentRole}
+        <div className="px-3 py-1.5 rounded-xl bg-[#F4C542] text-black font-extrabold text-xs uppercase tracking-widest shrink-0">
+          Role: {currentRole}
         </div>
       </div>
 
@@ -247,26 +361,59 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* User Management System & Member Directory */}
-      <div className="glass-gold-card p-6 space-y-5 border-2 border-[#F4C542]/40">
-        
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
-          <div>
-            <h3 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
-              <Users className="w-5 h-5 text-[#F4C542]" /> User Management & Member Directory
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Comprehensive control center for editing user balances, VIP levels, account statuses, and permissions.
-            </p>
-          </div>
+      {/* ADMIN SUB-MODULE NAVIGATION TABS */}
+      <div className="glass-gold-card p-3 flex items-center gap-2 overflow-x-auto scrollbar-none border border-[#F4C542]/30">
+        {[
+          { id: 'users', label: 'User Directory', icon: Users },
+          { id: 'approvals', label: 'Fund Approvals', icon: CheckCircle2 },
+          { id: 'kyc', label: 'KYC Review', icon: Award },
+          { id: 'invest_plans', label: 'Investment Plans', icon: TrendingUp },
+          { id: 'deposit_wallet', label: 'Deposit Wallet', icon: Wallet },
+          { id: 'bonus_center', label: 'Bonus Rewards', icon: Gift },
+          { id: 'loan_system', label: 'Loan System', icon: Landmark },
+          { id: 'referral', label: 'Referral Rates', icon: Share2 },
+          { id: 'customer_care', label: 'Customer Care', icon: Headphones },
+          { id: 'broadcast', label: 'Broadcast Alerts', icon: Send }
+        ].map(tab => {
+          const Icon = tab.icon;
+          const isActive = adminTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setAdminTab(tab.id as any)}
+              className={`px-3.5 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all flex items-center gap-2 shrink-0 ${
+                isActive
+                  ? 'bg-[#F4C542] text-black shadow-lg shadow-[#F4C542]/20 scale-[1.02]'
+                  : 'bg-[#080D18] text-slate-300 hover:text-white hover:bg-slate-800/60 border border-slate-800'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
 
-          <button
-            onClick={() => setShowAddUserModal(true)}
-            className="px-4 py-2.5 btn-gold-gradient text-xs font-extrabold text-black flex items-center gap-2 rounded-xl shrink-0 hover:scale-[1.02] transition-transform shadow-lg shadow-[#F4C542]/10"
-          >
-            <UserPlus className="w-4 h-4" /> Add New User
-          </button>
-        </div>
+      {/* 1. USER DIRECTORY MODULE */}
+      {adminTab === 'users' && (
+        <div className="glass-gold-card p-6 space-y-5 border-2 border-[#F4C542]/40">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
+                <Users className="w-5 h-5 text-[#F4C542]" /> User Management & Member Directory
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Comprehensive control center for editing user balances, VIP levels, account statuses, and permissions.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setShowAddUserModal(true)}
+              className="px-4 py-2.5 btn-gold-gradient text-xs font-extrabold text-black flex items-center gap-2 rounded-xl shrink-0 hover:scale-[1.02] transition-transform shadow-lg shadow-[#F4C542]/10"
+            >
+              <UserPlus className="w-4 h-4" /> Add New User
+            </button>
+          </div>
 
         {/* User Management Stat Badges */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -594,14 +741,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </form>
         </div>
 
-      </div>
+        </div>
+      )}
 
-      {/* Deposit & Withdrawal Fund Approval Queue */}
-      <div className="glass-gold-card p-6 space-y-4 border-2 border-emerald-500/30">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <h3 className="text-sm font-extrabold text-slate-100 flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-emerald-400" /> Deposit & Withdrawal Approval Queue
-          </h3>
+      {/* 2. FUND APPROVALS MODULE */}
+      {adminTab === 'approvals' && (
+        <div className="glass-gold-card p-6 space-y-4 border-2 border-emerald-500/30">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h3 className="text-sm font-extrabold text-slate-100 flex items-center gap-2">
+              <Wallet className="w-5 h-5 text-emerald-400" /> Deposit & Withdrawal Approval Queue
+            </h3>
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-bold flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5" /> {transactions.filter(t => (t.type === 'deposit' || t.type === 'withdraw') && t.status === 'pending').length} Pending Approval
@@ -693,10 +842,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </tbody>
           </table>
         </div>
-      </div>
+        </div>
+      )}
 
-      {/* KYC Identity Verification Approval Queue */}
-      <div className="glass-gold-card p-6 space-y-4 border-2 border-[#F4C542]/30">
+      {/* 3. KYC REVIEW MODULE */}
+      {adminTab === 'kyc' && (
+        <div className="glass-gold-card p-6 space-y-4 border-2 border-[#F4C542]/30">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <h3 className="text-sm font-extrabold text-slate-100 flex items-center gap-2">
             <Award className="w-5 h-5 text-[#F4C542]" /> KYC Identity Verification Approval Queue
@@ -787,9 +938,439 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </tbody>
           </table>
         </div>
-      </div>
+        </div>
+      )}
 
-      {/* KYC Inspect Document Modal */}
+      {/* 4. INVESTMENT PLANS EDIT MODULE */}
+      {adminTab === 'invest_plans' && (
+        <div className="glass-gold-card p-6 space-y-6 border-2 border-[#F4C542]/40">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-[#F4C542]" /> Edit Investment Plans & Profit Packages
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Modify yields, durations, and investment limits for express trading pools.
+              </p>
+            </div>
+            <button
+              onClick={handleSaveInvestmentPlans}
+              className="px-4 py-2.5 btn-gold-gradient text-black font-extrabold text-xs flex items-center gap-2 rounded-xl"
+            >
+              <Save className="w-4 h-4" /> Save Investment Plans
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {editPlans.map((plan, idx) => (
+              <div key={plan.id} className="p-4 rounded-xl bg-[#080D18] border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#F4C542] uppercase">Plan #{idx + 1} - ID: {plan.id}</span>
+                  <button
+                    onClick={() => {
+                      if (checkSubAdminGuard()) return;
+                      setEditPlans(editPlans.filter(p => p.id !== plan.id));
+                    }}
+                    className="text-xs text-red-400 font-bold hover:underline"
+                  >
+                    Remove Plan
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-400 mb-1">Plan Title</label>
+                    <input
+                      type="text"
+                      value={plan.title}
+                      onChange={(e) => {
+                        const updated = [...editPlans];
+                        updated[idx].title = e.target.value;
+                        setEditPlans(updated);
+                      }}
+                      className="w-full bg-[#0D121F] border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-400 mb-1">Profit Yield (%)</label>
+                    <input
+                      type="number"
+                      value={plan.profitPercentage}
+                      onChange={(e) => {
+                        const updated = [...editPlans];
+                        updated[idx].profitPercentage = parseFloat(e.target.value) || 0;
+                        setEditPlans(updated);
+                      }}
+                      className="w-full bg-[#0D121F] border border-slate-700 rounded-lg px-3 py-2 text-xs text-emerald-400 font-bold font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-400 mb-1">Duration (Seconds)</label>
+                    <input
+                      type="number"
+                      value={plan.durationSeconds}
+                      onChange={(e) => {
+                        const updated = [...editPlans];
+                        updated[idx].durationSeconds = parseInt(e.target.value) || 0;
+                        setEditPlans(updated);
+                      }}
+                      className="w-full bg-[#0D121F] border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-400 mb-1">Min Investment ($)</label>
+                    <input
+                      type="number"
+                      value={plan.minInvestment}
+                      onChange={(e) => {
+                        const updated = [...editPlans];
+                        updated[idx].minInvestment = parseFloat(e.target.value) || 0;
+                        setEditPlans(updated);
+                      }}
+                      className="w-full bg-[#0D121F] border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <button
+              onClick={() => {
+                if (checkSubAdminGuard()) return;
+                const newPlan: InvestmentPlan = {
+                  id: `p${Date.now()}`,
+                  title: 'New Yield Plan',
+                  durationSeconds: 120,
+                  profitPercentage: 25,
+                  minInvestment: 50,
+                  maxInvestment: 50000,
+                  description: 'Custom express trading pool'
+                };
+                setEditPlans([...editPlans, newPlan]);
+              }}
+              className="w-full py-2.5 border border-dashed border-[#F4C542]/40 rounded-xl text-xs font-bold text-[#F4C542] hover:bg-[#F4C542]/10 transition-colors"
+            >
+              + Add New Custom Investment Package
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 5. DEPOSIT WALLET TAB */}
+      {adminTab === 'deposit_wallet' && (
+        <div className="glass-gold-card p-6 space-y-6 border-2 border-[#F4C542]/40">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
+                <Wallet className="w-5 h-5 text-[#F4C542]" /> Edit Deposit Wallet & QR Configuration
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Set the official platform receiving wallet address (TRC20 / ERC20) and deposit limits.
+              </p>
+            </div>
+            <button
+              onClick={handleSaveWalletConfig}
+              className="px-4 py-2.5 btn-gold-gradient text-black font-extrabold text-xs flex items-center gap-2 rounded-xl"
+            >
+              <Save className="w-4 h-4" /> Save Wallet Settings
+            </button>
+          </div>
+
+          <div className="space-y-4 max-w-xl">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Official Deposit Wallet Address (USDT TRC20)</label>
+              <input
+                type="text"
+                value={editWalletAddress}
+                onChange={(e) => setEditWalletAddress(e.target.value)}
+                className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-slate-100 font-mono focus:border-[#F4C542] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Minimum Deposit Amount ($ USDT)</label>
+              <input
+                type="number"
+                value={editMinDeposit}
+                onChange={(e) => setEditMinDeposit(e.target.value)}
+                className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-slate-100 font-mono focus:border-[#F4C542] focus:outline-none"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. BONUS REWARDS TAB */}
+      {adminTab === 'bonus_center' && (
+        <div className="glass-gold-card p-6 space-y-6 border-2 border-[#F4C542]/40">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
+                <Gift className="w-5 h-5 text-[#F4C542]" /> Edit Bonus Reward Center Settings
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Configure welcome reward amounts and daily task bonuses.
+              </p>
+            </div>
+            <button
+              onClick={handleSaveBonusConfig}
+              className="px-4 py-2.5 btn-gold-gradient text-black font-extrabold text-xs flex items-center gap-2 rounded-xl"
+            >
+              <Save className="w-4 h-4" /> Save Bonus Config
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Welcome Sign-Up Bonus ($ USDT)</label>
+              <input
+                type="number"
+                value={editWelcomeBonus}
+                onChange={(e) => setEditWelcomeBonus(e.target.value)}
+                className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-emerald-400 font-extrabold font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Daily Task Reward ($ USDT)</label>
+              <input
+                type="number"
+                value={editDailyBonus}
+                onChange={(e) => setEditDailyBonus(e.target.value)}
+                className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-[#F4C542] font-extrabold font-mono"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 7. LOAN SYSTEM TAB */}
+      {adminTab === 'loan_system' && (
+        <div className="glass-gold-card p-6 space-y-6 border-2 border-[#F4C542]/40">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
+                <Landmark className="w-5 h-5 text-[#F4C542]" /> Edit Loan System & Official Overdue Notice
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Control interest rates, loan terms, and trigger/clear the user Official Repayment Notice.
+              </p>
+            </div>
+            <button
+              onClick={handleSaveLoanNotice}
+              className="px-4 py-2.5 btn-gold-gradient text-black font-extrabold text-xs flex items-center gap-2 rounded-xl"
+            >
+              <Save className="w-4 h-4" /> Save Loan Settings
+            </button>
+          </div>
+
+          <div className="space-y-4 max-w-2xl">
+            <div className="p-4 rounded-xl bg-[#080D18] border border-slate-800 space-y-3">
+              <h4 className="text-xs font-bold text-[#F4C542] uppercase">Active User Loan Record</h4>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Borrower Name</label>
+                  <input
+                    type="text"
+                    value={editLoan.borrowerName}
+                    onChange={(e) => setEditLoan({ ...editLoan, borrowerName: e.target.value })}
+                    className="w-full bg-[#0D121F] border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Principal Amount ($ USDT)</label>
+                  <input
+                    type="number"
+                    value={editLoan.principalAmount}
+                    onChange={(e) => setEditLoan({ ...editLoan, principalAmount: parseFloat(e.target.value) || 0 })}
+                    className="w-full bg-[#0D121F] border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Daily Interest Rate (%)</label>
+                  <input
+                    type="number"
+                    value={editLoan.interestRate}
+                    onChange={(e) => setEditLoan({ ...editLoan, interestRate: parseFloat(e.target.value) || 0 })}
+                    className="w-full bg-[#0D121F] border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <span className="text-xs font-bold text-slate-300">Loan Status:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (checkSubAdminGuard()) return;
+                    setEditLoan({ ...editLoan, isOverdue: !editLoan.isOverdue, status: !editLoan.isOverdue ? 'overdue' : 'active' });
+                  }}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 ${
+                    editLoan.isOverdue
+                      ? 'bg-red-500 text-white'
+                      : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                  }`}
+                >
+                  {editLoan.isOverdue ? '🚨 OVERDUE NOTICE ACTIVE (Click to Clear)' : '✅ CLEAN / ACTIVE LOAN (Click to Set Overdue)'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 8. REFERRAL RATES TAB */}
+      {adminTab === 'referral' && (
+        <div className="glass-gold-card p-6 space-y-6 border-2 border-[#F4C542]/40">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
+                <Share2 className="w-5 h-5 text-[#F4C542]" /> Edit Referral Commission Rates
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Adjust multi-tier affiliate referral commission percentages.
+              </p>
+            </div>
+            <button
+              onClick={handleSaveReferralConfig}
+              className="px-4 py-2.5 btn-gold-gradient text-black font-extrabold text-xs flex items-center gap-2 rounded-xl"
+            >
+              <Save className="w-4 h-4" /> Save Commission Rates
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Level 1 Direct Referral (%)</label>
+              <input
+                type="number"
+                value={editTier1}
+                onChange={(e) => setEditTier1(e.target.value)}
+                className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-[#F4C542] font-extrabold font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Level 2 Secondary Referral (%)</label>
+              <input
+                type="number"
+                value={editTier2}
+                onChange={(e) => setEditTier2(e.target.value)}
+                className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-slate-200 font-extrabold font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-[#F4C542] mb-1">Level 3 Network Referral (%)</label>
+              <input
+                type="number"
+                value={editTier3}
+                onChange={(e) => setEditTier3(e.target.value)}
+                className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-slate-400 font-extrabold font-mono"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 9. CUSTOMER CARE TAB */}
+      {adminTab === 'customer_care' && (
+        <div className="glass-gold-card p-6 space-y-6 border-2 border-[#F4C542]/40">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
+                <Headphones className="w-5 h-5 text-[#F4C542]" /> Edit 24/7 Customer Care Handles
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Update official Telegram support handle, WhatsApp number, and support email.
+              </p>
+            </div>
+            <button
+              onClick={handleSaveCustomerCare}
+              className="px-4 py-2.5 btn-gold-gradient text-black font-extrabold text-xs flex items-center gap-2 rounded-xl"
+            >
+              <Save className="w-4 h-4" /> Save Support Channels
+            </button>
+          </div>
+
+          <div className="space-y-4 max-w-xl">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Telegram Support Channel / Handle</label>
+              <input
+                type="text"
+                value={editTelegram}
+                onChange={(e) => setEditTelegram(e.target.value)}
+                placeholder="@USDTRewardProSupport"
+                className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-sky-400 font-bold focus:border-[#F4C542] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">WhatsApp Customer Care Number</label>
+              <input
+                type="text"
+                value={editWhatsapp}
+                onChange={(e) => setEditWhatsapp(e.target.value)}
+                placeholder="+1 (800) 555-0199"
+                className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-emerald-400 font-bold focus:border-[#F4C542] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Official Support Email</label>
+              <input
+                type="email"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                placeholder="support@usdtpro.com"
+                className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-purple-400 font-bold focus:border-[#F4C542] focus:outline-none"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 10. BROADCAST ALERTS TAB */}
+      {adminTab === 'broadcast' && (
+        <div className="glass-gold-card p-6 space-y-4 max-w-xl">
+          <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+            <Send className="w-4 h-4 text-[#F4C542]" /> Broadcast Push System Message
+          </h3>
+
+          <form onSubmit={handleSendBroadcast} className="space-y-3">
+            <input
+              type="text"
+              value={broadcastTitle}
+              onChange={(e) => setBroadcastTitle(e.target.value)}
+              placeholder="Notification Title (e.g., 🚀 Deposit Bonus Live)"
+              className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-4 py-2 text-xs text-slate-100"
+            />
+            <textarea
+              value={broadcastMessage}
+              onChange={(e) => setBroadcastMessage(e.target.value)}
+              rows={3}
+              placeholder="Notification body text..."
+              className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-4 py-2 text-xs text-slate-100"
+            />
+
+            {broadcastSent && (
+              <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs font-bold">
+                ✅ Broadcast notification dispatched to user notification drawer!
+              </div>
+            )}
+
+            <button type="submit" className="w-full py-2.5 btn-gold-outline text-xs font-bold text-[#F4C542]">
+              Send Global Announcement
+            </button>
+          </form>
+        </div>
+      )}
       {selectedKyc && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-[#0D121F] border border-[#F4C542]/50 rounded-2xl p-6 max-w-xl w-full space-y-5 shadow-2xl relative max-h-[90vh] overflow-y-auto">

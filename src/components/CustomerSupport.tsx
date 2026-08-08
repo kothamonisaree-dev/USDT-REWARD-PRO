@@ -1,7 +1,19 @@
 import React, { useState } from 'react';
 import { Headphones, MessageCircle, Send, Mail, HelpCircle, SendHorizontal } from 'lucide-react';
 
-export const CustomerSupport: React.FC = () => {
+interface CustomerSupportProps {
+  config?: {
+    telegram: string;
+    whatsapp: string;
+    email: string;
+  };
+}
+
+export const CustomerSupport: React.FC<CustomerSupportProps> = ({ config }) => {
+  const telegramHandle = config?.telegram || '@USDTRewardProSupport';
+  const whatsappNum = config?.whatsapp || '+1 (800) 555-0199';
+  const supportEmail = config?.email || 'support@usdtpro.com';
+
   const [chatMessages, setChatMessages] = useState([
     { sender: 'bot', text: 'Hello! Welcome to USDT REWARD PRO Support 24/7. How can we assist you today?' }
   ]);
@@ -18,7 +30,7 @@ export const CustomerSupport: React.FC = () => {
     setTimeout(() => {
       setChatMessages(prev => [
         ...prev,
-        { sender: 'bot', text: 'Thank you for contacting USDT REWARD PRO. A senior support specialist is reviewing your message. For instant response, you can also reach us on Telegram or WhatsApp!' }
+        { sender: 'bot', text: `Thank you for contacting USDT REWARD PRO. A senior support specialist is reviewing your message. For instant response, you can also reach us on Telegram (${telegramHandle}) or WhatsApp (${whatsappNum})!` }
       ]);
     }, 1000);
   };
@@ -27,7 +39,7 @@ export const CustomerSupport: React.FC = () => {
     { q: 'How fast are USDT deposits credited?', a: 'TRC20 and ERC20 deposits are automatically credited after 1 block confirmation (usually under 60 seconds).' },
     { q: 'What is the minimum withdrawal amount?', a: 'The minimum withdrawal amount is $50.00 USDT. Processing is instant via automated smart routing.' },
     { q: 'How does the 90s High Yield Investment work?', a: 'When you activate a plan, a live 90-second countdown runs. Once completed, your principal + 20% fixed profit is automatically credited back.' },
-    { q: 'What should I do if my loan repayment is overdue?', a: 'Please contact our Accounting Manager via Telegram or WhatsApp on the Official Loan Repayment Notice page immediately.' }
+    { q: 'What should I do if my loan repayment is overdue?', a: `Please contact our Accounting Manager via Telegram (${telegramHandle}) or WhatsApp (${whatsappNum}) immediately.` }
   ];
 
   return (
@@ -46,7 +58,7 @@ export const CustomerSupport: React.FC = () => {
       {/* Quick Direct Links */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <a
-          href="https://t.me/USDTRewardProSupport"
+          href={telegramHandle.startsWith('http') ? telegramHandle : `https://t.me/${telegramHandle.replace('@', '')}`}
           target="_blank"
           rel="noopener noreferrer"
           className="glass-gold-card p-5 flex items-center gap-3 hover:border-sky-400/50 transition-colors"
@@ -56,12 +68,12 @@ export const CustomerSupport: React.FC = () => {
           </div>
           <div>
             <h4 className="font-bold text-sm text-slate-100">Telegram Channel</h4>
-            <span className="text-xs text-sky-400">@USDTRewardProSupport</span>
+            <span className="text-xs text-sky-400">{telegramHandle}</span>
           </div>
         </a>
 
         <a
-          href="https://wa.me/18005550199"
+          href={`https://wa.me/${whatsappNum.replace(/[^0-9]/g, '')}`}
           target="_blank"
           rel="noopener noreferrer"
           className="glass-gold-card p-5 flex items-center gap-3 hover:border-emerald-400/50 transition-colors"
@@ -71,7 +83,7 @@ export const CustomerSupport: React.FC = () => {
           </div>
           <div>
             <h4 className="font-bold text-sm text-slate-100">WhatsApp Support</h4>
-            <span className="text-xs text-emerald-400">+1 (800) 555-0199</span>
+            <span className="text-xs text-emerald-400">{whatsappNum}</span>
           </div>
         </a>
 
@@ -81,7 +93,7 @@ export const CustomerSupport: React.FC = () => {
           </div>
           <div>
             <h4 className="font-bold text-sm text-slate-100">Official Email</h4>
-            <span className="text-xs text-slate-400">support@usdtrewardpro.com</span>
+            <span className="text-xs text-purple-400">{supportEmail}</span>
           </div>
         </div>
       </div>

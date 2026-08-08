@@ -4,9 +4,16 @@ import confetti from 'canvas-confetti';
 
 interface BonusRewardCenterProps {
   onClaimWelcomeBonus: (amount: number) => void;
+  bonusConfig?: {
+    dailyReward: number;
+    welcomeBonus: number;
+  };
 }
 
-export const BonusRewardCenter: React.FC<BonusRewardCenterProps> = ({ onClaimWelcomeBonus }) => {
+export const BonusRewardCenter: React.FC<BonusRewardCenterProps> = ({ onClaimWelcomeBonus, bonusConfig }) => {
+  const welcomeAmt = bonusConfig?.welcomeBonus ?? 5.00;
+  const dailyAmt = bonusConfig?.dailyReward ?? 5.00;
+
   const [welcomeClaimed, setWelcomeClaimed] = useState(false);
   const [day1Status, setDay1Status] = useState<'available' | 'pending' | 'completed'>('available');
   const [day2Status, setDay2Status] = useState<'locked' | 'available' | 'completed'>('locked');
@@ -25,7 +32,7 @@ export const BonusRewardCenter: React.FC<BonusRewardCenterProps> = ({ onClaimWel
     if (welcomeClaimed) return;
     confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
     setWelcomeClaimed(true);
-    onClaimWelcomeBonus(5.00);
+    onClaimWelcomeBonus(welcomeAmt);
   };
 
   const handleStartTask1 = () => {
@@ -83,7 +90,7 @@ export const BonusRewardCenter: React.FC<BonusRewardCenterProps> = ({ onClaimWel
             <div>
               <div className="text-xs font-bold text-emerald-400 uppercase tracking-widest">🎉 Welcome Bonus</div>
               <h3 className="text-lg font-extrabold text-slate-100 mt-0.5">🎁 New Member Sign-Up Bonus</h3>
-              <p className="text-xs text-slate-400 mt-1">Instant $5.00 USDT credited directly to your wallet balance.</p>
+              <p className="text-xs text-slate-400 mt-1">Instant ${welcomeAmt.toFixed(2)} USDT credited directly to your wallet balance.</p>
             </div>
           </div>
 
@@ -96,7 +103,7 @@ export const BonusRewardCenter: React.FC<BonusRewardCenterProps> = ({ onClaimWel
                 : 'btn-gold-gradient text-black animate-gold-pulse'
             }`}
           >
-            {welcomeClaimed ? '✔ $5.00 Bonus Claimed' : 'Claim $5.00 Bonus'}
+            {welcomeClaimed ? `✔ $${welcomeAmt.toFixed(2)} Bonus Claimed` : `Claim $${welcomeAmt.toFixed(2)} Bonus`}
           </button>
         </div>
       </div>
