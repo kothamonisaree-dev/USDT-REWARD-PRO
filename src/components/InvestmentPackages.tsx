@@ -87,12 +87,12 @@ export const InvestmentPackages: React.FC<InvestmentPackagesProps> = ({
     const amountNum = parseFloat(amountInput);
 
     // Rules validation
-    if (isNaN(amountNum) || amountNum < selectedPlan.minInvestment) {
-      setErrorMsg(`Minimum investment for ${selectedPlan.durationSeconds}s is $${selectedPlan.minInvestment}`);
+    if (isNaN(amountNum) || amountNum < (selectedPlan?.minInvestment ?? 0)) {
+      setErrorMsg(`Minimum investment for ${selectedPlan?.durationSeconds ?? 0}s is $${selectedPlan?.minInvestment ?? 0}`);
       return;
     }
-    if (amountNum > selectedPlan.maxInvestment) {
-      setErrorMsg(`Maximum investment limit is $${selectedPlan.maxInvestment.toLocaleString()}`);
+    if (amountNum > (selectedPlan?.maxInvestment ?? Infinity)) {
+      setErrorMsg(`Maximum investment limit is $${(selectedPlan?.maxInvestment ?? 0).toLocaleString()}`);
       return;
     }
     if (amountNum > wallet.usdtBalance) {
@@ -210,11 +210,11 @@ export const InvestmentPackages: React.FC<InvestmentPackagesProps> = ({
                 <div className="space-y-2 text-xs text-slate-300 font-mono mb-6">
                   <div className="flex justify-between py-1 border-b border-slate-800/60">
                     <span className="text-slate-400">Min Investment:</span>
-                    <span className="font-bold text-[#F4C542]">${plan.minInvestment.toLocaleString()}</span>
+                    <span className="font-bold text-[#F4C542]">${(plan.minInvestment ?? 0).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-slate-800/60">
                     <span className="text-slate-400">Max Investment:</span>
-                    <span className="font-bold text-slate-200">${plan.maxInvestment.toLocaleString()}</span>
+                    <span className="font-bold text-slate-200">${(plan.maxInvestment ?? 0).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
@@ -338,8 +338,8 @@ export const InvestmentPackages: React.FC<InvestmentPackagesProps> = ({
                     <span className="absolute right-3 top-3 text-xs font-bold text-[#F4C542]">USDT</span>
                   </div>
                   <div className="flex justify-between text-[11px] text-slate-400 mt-1">
-                    <span>Min: ${selectedPlan.minInvestment} | Max: ${selectedPlan.maxInvestment.toLocaleString()}</span>
-                    <span>Available: ${wallet.usdtBalance.toFixed(2)}</span>
+                    <span>Min: ${selectedPlan?.minInvestment ?? 0} | Max: ${(selectedPlan?.maxInvestment ?? 0).toLocaleString()}</span>
+                    <span>Available: ${(wallet?.usdtBalance ?? 0).toFixed(2)}</span>
                   </div>
                 </div>
 

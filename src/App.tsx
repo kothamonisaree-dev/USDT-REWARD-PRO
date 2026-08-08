@@ -45,12 +45,15 @@ import { SettingsPage } from './components/SettingsPage';
 import { AdminDashboard } from './components/AdminDashboard';
 import { Sidebar } from './components/Sidebar';
 import { BottomNav } from './components/BottomNav';
+import { LandingPage } from './components/LandingPage';
+import { X } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavigationTab>('home');
   const [userRole, setUserRole] = useState<UserRole>('user');
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
   const [authMode, setAuthMode] = useState<'signin' | 'register'>('signin');
   const [loginEmail, setLoginEmail] = useState<string>('alex.m@usdtpro.com');
   const [loginPassword, setLoginPassword] = useState<string>('');
@@ -151,6 +154,8 @@ export default function App() {
 
   const handleLogout = () => {
     setIsLoggedIn(false);
+    setShowAuthModal(false);
+    setActiveTab('home');
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -195,6 +200,7 @@ export default function App() {
       }));
 
       setIsLoggedIn(true);
+      setShowAuthModal(false);
 
       if (matchedUser.role === 'admin') {
         setActiveTab('admin');
@@ -267,6 +273,7 @@ export default function App() {
       });
       setUserRole('user');
       setIsLoggedIn(true);
+      setShowAuthModal(false);
       setActiveTab('home');
       setNotifications([
         {
@@ -350,6 +357,7 @@ export default function App() {
 
     setUserRole('user');
     setIsLoggedIn(true);
+    setShowAuthModal(false);
     setActiveTab('home');
 
     // Reset register input fields
@@ -715,6 +723,238 @@ export default function App() {
     );
   };
 
+  if (!isLoggedIn) {
+    return (
+      <>
+        <LandingPage
+          onOpenAuth={(mode) => {
+            setAuthMode(mode);
+            setShowAuthModal(true);
+          }}
+          plans={plansList}
+          customerCareConfig={customerCareConfig}
+        />
+
+        {/* Logged Out Login / Register Modal Overlay */}
+        {showAuthModal && (
+          <div className="fixed inset-0 z-50 bg-[#050505]/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="glass-gold-card p-6 sm:p-8 max-w-md w-full space-y-5 shadow-2xl relative border-[#F4C542]/40">
+              
+              {/* Close Button */}
+              <button
+                type="button"
+                onClick={() => setShowAuthModal(false)}
+                className="absolute top-4 right-4 p-1.5 rounded-xl bg-slate-800/80 text-slate-400 hover:text-white transition-colors"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              {/* Header Brand */}
+              <div className="text-center space-y-2">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-[#B8860B] via-[#F4C542] to-[#FFD700] p-0.5 shadow-[0_0_20px_rgba(244,197,66,0.3)] flex items-center justify-center">
+                  <div className="w-full h-full bg-[#050505] rounded-[14px] flex items-center justify-center">
+                    <span className="text-[#F4C542] font-black text-2xl">₮</span>
+                  </div>
+                </div>
+                <h2 className="text-xl font-extrabold text-slate-100">USDT REWARD PRO</h2>
+                <p className="text-xs text-slate-400">
+                  {authMode === 'signin' ? 'Sign in to access your VIP wallet & trading engine' : 'Create a new account to unlock yield rewards & bonuses'}
+                </p>
+              </div>
+
+              {/* Auth Mode Tabs */}
+              <div className="flex rounded-xl bg-[#080D18] p-1 border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setAuthMode('signin')}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                    authMode === 'signin'
+                      ? 'btn-gold-gradient text-black shadow-md'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAuthMode('register')}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                    authMode === 'register'
+                      ? 'btn-gold-gradient text-black shadow-md'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Sign Up
+                </button>
+              </div>
+
+              {/* SIGN IN FORM */}
+              {authMode === 'signin' ? (
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Username / Email Address</label>
+                    <input
+                      type="text"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      placeholder="e.g. emukhan580 or alex.m@usdtpro.com"
+                      required
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600 font-sans"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Password</label>
+                    <input
+                      type="password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="Enter account password"
+                      required
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-3 btn-gold-gradient text-xs font-extrabold uppercase tracking-wider text-black shadow-lg shadow-[#F4C542]/20 hover:scale-[1.01] transition-transform"
+                  >
+                    Sign In to VIP Wallet
+                  </button>
+                </form>
+              ) : (
+                /* SIGN UP FORM */
+                <form onSubmit={handleRegister} className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Full Name</label>
+                      <input
+                        type="text"
+                        value={regName}
+                        onChange={(e) => setRegName(e.target.value)}
+                        placeholder="e.g. John Doe"
+                        required
+                        className="w-full px-3 py-2 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Username</label>
+                      <input
+                        type="text"
+                        value={regUsername}
+                        onChange={(e) => setRegUsername(e.target.value)}
+                        placeholder="e.g. johndoe99"
+                        required
+                        className="w-full px-3 py-2 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Email Address</label>
+                      <input
+                        type="email"
+                        value={regEmail}
+                        onChange={(e) => setRegEmail(e.target.value)}
+                        placeholder="john@example.com"
+                        required
+                        className="w-full px-3 py-2 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Phone Number</label>
+                      <input
+                        type="tel"
+                        value={regPhone}
+                        onChange={(e) => setRegPhone(e.target.value)}
+                        placeholder="+1 (555) 123-4567"
+                        required
+                        className="w-full px-3 py-2 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Password</label>
+                      <input
+                        type="password"
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        placeholder="Min. 6 chars"
+                        required
+                        className="w-full px-3 py-2 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Confirm Password</label>
+                      <input
+                        type="password"
+                        value={regConfirmPassword}
+                        onChange={(e) => setRegConfirmPassword(e.target.value)}
+                        placeholder="Confirm password"
+                        required
+                        className="w-full px-3 py-2 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Referral Code (Optional)</label>
+                    <input
+                      type="text"
+                      value={regReferral}
+                      onChange={(e) => setRegReferral(e.target.value)}
+                      placeholder="e.g. VIP888"
+                      className="w-full px-3 py-2 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-3 btn-gold-gradient text-xs font-extrabold uppercase tracking-wider text-black shadow-lg shadow-[#F4C542]/20 hover:scale-[1.01] transition-transform"
+                  >
+                    Sign Up & Create Account
+                  </button>
+                </form>
+              )}
+
+              {/* Toggle Switch Footer */}
+              <div className="text-center pt-2 border-t border-slate-800">
+                {authMode === 'signin' ? (
+                  <p className="text-xs text-slate-400">
+                    Don't have an account?{' '}
+                    <button
+                      type="button"
+                      onClick={() => setAuthMode('register')}
+                      className="text-[#F4C542] font-bold hover:underline ml-1"
+                    >
+                      Sign Up
+                    </button>
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-400">
+                    Already have an account?{' '}
+                    <button
+                      type="button"
+                      onClick={() => setAuthMode('signin')}
+                      className="text-[#F4C542] font-bold hover:underline ml-1"
+                    >
+                      Sign In
+                    </button>
+                  </p>
+                )}
+              </div>
+
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#050505] text-slate-100 flex flex-col justify-between selection:bg-[#F4C542]/30 selection:text-[#F4C542] pb-20 sm:pb-8">
       
@@ -743,213 +983,6 @@ export default function App() {
         onLogout={handleLogout}
         onSelectAdminTab={(subTab) => setAdminSubTab(subTab)}
       />
-
-      {/* Logged Out Login / Register Modal Overlay */}
-      {!isLoggedIn && (
-        <div className="fixed inset-0 z-50 bg-[#050505]/95 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="glass-gold-card p-6 sm:p-8 max-w-md w-full space-y-5 shadow-2xl relative border-[#F4C542]/40">
-            
-            {/* Header Brand */}
-            <div className="text-center space-y-2">
-              <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-[#B8860B] via-[#F4C542] to-[#FFD700] p-0.5 shadow-[0_0_20px_rgba(244,197,66,0.3)] flex items-center justify-center">
-                <div className="w-full h-full bg-[#050505] rounded-[14px] flex items-center justify-center">
-                  <span className="text-[#F4C542] font-black text-2xl">₮</span>
-                </div>
-              </div>
-              <h2 className="text-xl font-extrabold text-slate-100">USDT REWARD PRO</h2>
-              <p className="text-xs text-slate-400">
-                {authMode === 'signin' ? 'Sign in to access your VIP wallet & trading engine' : 'Create a new account to unlock yield rewards & bonuses'}
-              </p>
-            </div>
-
-            {/* Auth Mode Tabs */}
-            <div className="flex rounded-xl bg-[#080D18] p-1 border border-slate-800">
-              <button
-                type="button"
-                onClick={() => setAuthMode('signin')}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                  authMode === 'signin'
-                    ? 'btn-gold-gradient text-black shadow-md'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Sign In
-              </button>
-              <button
-                type="button"
-                onClick={() => setAuthMode('register')}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                  authMode === 'register'
-                    ? 'btn-gold-gradient text-black shadow-md'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Sign Up
-              </button>
-            </div>
-
-            {/* SIGN IN FORM */}
-            {authMode === 'signin' ? (
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Username / Email Address</label>
-                  <input
-                    type="text"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    placeholder="e.g. emukhan580 or alex.m@usdtpro.com"
-                    required
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600 font-sans"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Password</label>
-                  <input
-                    type="password"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    placeholder="Enter account password"
-                    required
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-3 btn-gold-gradient text-xs font-extrabold uppercase tracking-wider text-black shadow-lg shadow-[#F4C542]/20 hover:scale-[1.01] transition-transform"
-                >
-                  Sign In to VIP Wallet
-                </button>
-              </form>
-            ) : (
-              /* SIGN UP FORM */
-              <form onSubmit={handleRegister} className="space-y-3">
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">Full Name</label>
-                    <input
-                      type="text"
-                      value={regName}
-                      onChange={(e) => setRegName(e.target.value)}
-                      placeholder="e.g. John Doe"
-                      required
-                      className="w-full px-3 py-2 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">Username</label>
-                    <input
-                      type="text"
-                      value={regUsername}
-                      onChange={(e) => setRegUsername(e.target.value)}
-                      placeholder="e.g. johndoe99"
-                      required
-                      className="w-full px-3 py-2 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">Email Address</label>
-                    <input
-                      type="email"
-                      value={regEmail}
-                      onChange={(e) => setRegEmail(e.target.value)}
-                      placeholder="john@example.com"
-                      required
-                      className="w-full px-3 py-2 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">Phone Number</label>
-                    <input
-                      type="tel"
-                      value={regPhone}
-                      onChange={(e) => setRegPhone(e.target.value)}
-                      placeholder="+1 (555) 123-4567"
-                      required
-                      className="w-full px-3 py-2 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">Password</label>
-                    <input
-                      type="password"
-                      value={regPassword}
-                      onChange={(e) => setRegPassword(e.target.value)}
-                      placeholder="Min. 6 chars"
-                      required
-                      className="w-full px-3 py-2 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">Confirm Password</label>
-                    <input
-                      type="password"
-                      value={regConfirmPassword}
-                      onChange={(e) => setRegConfirmPassword(e.target.value)}
-                      placeholder="Confirm password"
-                      required
-                      className="w-full px-3 py-2 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Referral Code (Optional)</label>
-                  <input
-                    type="text"
-                    value={regReferral}
-                    onChange={(e) => setRegReferral(e.target.value)}
-                    placeholder="e.g. VIP888"
-                    className="w-full px-3 py-2 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-3 btn-gold-gradient text-xs font-extrabold uppercase tracking-wider text-black shadow-lg shadow-[#F4C542]/20 hover:scale-[1.01] transition-transform"
-                >
-                  Sign Up & Create Account
-                </button>
-              </form>
-            )}
-
-            {/* Toggle Switch Footer */}
-            <div className="text-center pt-2 border-t border-slate-800">
-              {authMode === 'signin' ? (
-                <p className="text-xs text-slate-400">
-                  Don't have an account?{' '}
-                  <button
-                    type="button"
-                    onClick={() => setAuthMode('register')}
-                    className="text-[#F4C542] font-bold hover:underline ml-1"
-                  >
-                    Sign Up
-                  </button>
-                </p>
-              ) : (
-                <p className="text-xs text-slate-400">
-                  Already have an account?{' '}
-                  <button
-                    type="button"
-                    onClick={() => setAuthMode('signin')}
-                    className="text-[#F4C542] font-bold hover:underline ml-1"
-                  >
-                    Sign In
-                  </button>
-                </p>
-              )}
-            </div>
-
-          </div>
-        </div>
-      )}
 
       {/* Main Content Viewport */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">
