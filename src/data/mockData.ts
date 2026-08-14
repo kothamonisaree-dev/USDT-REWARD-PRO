@@ -17,9 +17,9 @@ export const initialUserProfile: UserProfile = {
   email: 'alex.m@usdtpro.com',
   phone: '+1 (555) 389-2041',
   avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
-  vipLevel: 3,
-  kycStatus: 'verified',
-  is2FAEnabled: true,
+  vipLevel: 1,
+  kycStatus: 'unverified',
+  is2FAEnabled: false,
   role: 'user',
   joinedDate: '2025-11-12',
   referralCode: 'USDT-VIP-8829'

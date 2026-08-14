@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserProfile, NavigationTab } from '../types';
-import { ChevronRight, ShieldCheck, Crown } from 'lucide-react';
+import { ChevronRight, ShieldCheck, ShieldAlert, Shield, Clock, Crown } from 'lucide-react';
 
 interface ProfileCardProps {
   user: UserProfile;
@@ -8,6 +8,8 @@ interface ProfileCardProps {
 }
 
 export const ProfileCard: React.FC<ProfileCardProps> = ({ user, onNavigate }) => {
+  const kycStatus = user.kycStatus || 'unverified';
+
   return (
     <div 
       onClick={() => onNavigate('profile')}
@@ -24,7 +26,15 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ user, onNavigate }) =>
             />
           </div>
           <div className="absolute -bottom-1 -right-1 bg-[#0D121F] rounded-full p-1 border border-[#F4C542]/50">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#F4C542]" />
+            {kycStatus === 'verified' ? (
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            ) : kycStatus === 'pending' ? (
+              <Clock className="w-3.5 h-3.5 text-amber-400" />
+            ) : kycStatus === 'rejected' ? (
+              <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
+            ) : (
+              <Shield className="w-3.5 h-3.5 text-slate-400" />
+            )}
           </div>
         </div>
 
@@ -42,9 +52,23 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ user, onNavigate }) =>
           <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-400 font-mono">
             <span>ID: <strong className="text-slate-200">{user.id}</strong></span>
             <span className="w-1 h-1 rounded-full bg-slate-600" />
-            <span className="text-emerald-400 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Verified
-            </span>
+            {kycStatus === 'verified' ? (
+              <span className="text-emerald-400 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Verified
+              </span>
+            ) : kycStatus === 'pending' ? (
+              <span className="text-amber-400 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" /> KYC Pending
+              </span>
+            ) : kycStatus === 'rejected' ? (
+              <span className="text-rose-400 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-400" /> KYC Rejected
+              </span>
+            ) : (
+              <span className="text-slate-400 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-500" /> Unverified
+              </span>
+            )}
           </div>
         </div>
       </div>

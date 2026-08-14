@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserProfile, KycRequestData } from '../types';
-import { ShieldCheck, Lock, CheckCircle2, Award, KeyRound, Eye, EyeOff, X, Check, Upload, FileText, Camera, ShieldAlert, ArrowRight, Image as ImageIcon, Clock } from 'lucide-react';
+import { ShieldCheck, Shield, Lock, CheckCircle2, Award, KeyRound, Eye, EyeOff, X, Check, Upload, FileText, Camera, ShieldAlert, ArrowRight, Image as ImageIcon, Clock } from 'lucide-react';
 
 interface SecurityAuthProps {
   user: UserProfile;
@@ -128,9 +128,23 @@ export const SecurityAuth: React.FC<SecurityAuthProps> = ({ user, onKycSubmit })
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-bold text-xs flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4" /> Verified Level 3
-          </div>
+          {user.kycStatus === 'verified' ? (
+            <div className="px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-bold text-xs flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4" /> KYC Verified Level 4
+            </div>
+          ) : user.kycStatus === 'pending' ? (
+            <div className="px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 font-bold text-xs flex items-center gap-1.5">
+              <Clock className="w-4 h-4" /> KYC Pending
+            </div>
+          ) : user.kycStatus === 'rejected' ? (
+            <div className="px-3 py-1.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 font-bold text-xs flex items-center gap-1.5">
+              <ShieldAlert className="w-4 h-4" /> KYC Rejected
+            </div>
+          ) : (
+            <div className="px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-400 font-bold text-xs flex items-center gap-1.5">
+              <Shield className="w-4 h-4" /> KYC Unverified
+            </div>
+          )}
 
           <button
             onClick={() => {
@@ -603,8 +617,9 @@ export const SecurityAuth: React.FC<SecurityAuthProps> = ({ user, onKycSubmit })
               </div>
             </div>
           ) : (
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4" /> Level 2 Verified (Passport & Face Check Completed)
+            <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-700 text-slate-300 text-xs flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>Identity not verified. Complete KYC to increase daily limits & verify account authenticity.</span>
             </div>
           )}
 
