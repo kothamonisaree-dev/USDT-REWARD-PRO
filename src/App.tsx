@@ -24,6 +24,7 @@ import {
   initialUsersList
 } from './data/mockData';
 import { fetchLiveBinanceTickers } from './services/binance';
+import { api } from './services/api';
 
 // Components
 import { Header } from './components/Header';
@@ -123,19 +124,28 @@ export default function App() {
   const [usersList, setUsersList] = useState<ManagedUser[]>(initialUsersList);
 
   // Handlers for KYC Approval/Rejection
-  const handleKycSubmit = (newReq: KycRequestData) => {
+  const handleKycSubmit = async (newReq: KycRequestData) => {
     setKycRequests(prev => [newReq, ...prev]);
     setUser(prev => ({ ...prev, kycStatus: 'pending' }));
+    
+    // Save permanently to Cloud SQL
+    await api.submitKyc(newReq);
+
     handleAddNotification(
       '📄 KYC Level 4 Submitted',
-      'Your verification documents have been submitted and are pending Admin review.',
+      'Your verification documents have been submitted to the Cloud Database and are pending Admin review.',
       'system'
     );
   };
 
-  const handleApproveKyc = (reqId: string) => {
+  const handleApproveKyc = async (reqId: string) => {
+    const targetReq = kycRequests.find(r => r.id === reqId);
     setKycRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: 'verified' } : r));
     setUser(prev => ({ ...prev, kycStatus: 'verified' }));
+    
+    // Update Cloud SQL
+    await api.updateKycStatus(reqId, 'verified', targetReq?.userId);
+
     handleAddNotification(
       '🎉 KYC Approved!',
       'Admin has APPROVED your VIP Level 4 KYC verification. $100,000 USD daily withdrawal limit active!',
@@ -143,9 +153,14 @@ export default function App() {
     );
   };
 
-  const handleRejectKyc = (reqId: string) => {
+  const handleRejectKyc = async (reqId: string) => {
+    const targetReq = kycRequests.find(r => r.id === reqId);
     setKycRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: 'rejected' } : r));
     setUser(prev => ({ ...prev, kycStatus: 'rejected' }));
+    
+    // Update Cloud SQL
+    await api.updateKycStatus(reqId, 'rejected', targetReq?.userId, 'Document verification failed.');
+
     handleAddNotification(
       '❌ KYC Application Rejected',
       'Admin has rejected your KYC application. Please re-check document photos and re-submit in Profile.',
@@ -159,15 +174,21 @@ export default function App() {
     setActiveTab('home');
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const input = loginEmail.trim().toLowerCase();
     const password = loginPassword.trim();
 
-    // Check against mock database users
-    const matchedUser = usersList.find(
-      u => u.username.toLowerCase() === input || u.email.toLowerCase() === input
-    );
+    // Check Cloud SQL API first
+    const cloudAuth = await api.loginUser(input, password);
+    let matchedUser = cloudAuth.user;
+
+    // Check against current state if not returned by API
+    if (!matchedUser) {
+      matchedUser = usersList.find(
+        u => u.username.toLowerCase() === input || u.email.toLowerCase() === input || u.id.toLowerCase() === input
+      );
+    }
 
     if (matchedUser) {
       // Password validation for admin & sub_admin
@@ -181,21 +202,21 @@ export default function App() {
       setUserRole(matchedUser.role);
       setUser(prev => ({
         ...prev,
-        id: matchedUser.id,
-        username: matchedUser.username,
-        fullName: matchedUser.fullName,
-        email: matchedUser.email,
-        phone: matchedUser.phone,
-        vipLevel: matchedUser.vipLevel,
-        referralCode: matchedUser.referralCode,
-        avatar: matchedUser.avatar
+        id: matchedUser!.id,
+        username: matchedUser!.username,
+        fullName: matchedUser!.fullName,
+        email: matchedUser!.email,
+        phone: matchedUser!.phone,
+        vipLevel: matchedUser!.vipLevel,
+        referralCode: matchedUser!.referralCode,
+        avatar: matchedUser!.avatar
       }));
       setWallet(prev => ({
         ...prev,
-        usdtBalance: matchedUser.usdtBalance,
-        usdBalance: matchedUser.usdtBalance,
-        totalDeposit: matchedUser.totalDeposit ?? prev.totalDeposit ?? 0,
-        totalWithdraw: matchedUser.totalWithdraw ?? prev.totalWithdraw ?? 0,
+        usdtBalance: matchedUser!.usdtBalance,
+        usdBalance: matchedUser!.usdtBalance,
+        totalDeposit: matchedUser!.totalDeposit ?? prev.totalDeposit ?? 0,
+        totalWithdraw: matchedUser!.totalWithdraw ?? prev.totalWithdraw ?? 0,
         totalProfit: prev.totalProfit ?? 0,
         activeInvestmentAmount: prev.activeInvestmentAmount ?? 0
       }));
@@ -209,7 +230,7 @@ export default function App() {
           {
             id: `NT-${Date.now()}`,
             title: '⚡ Super Admin Authenticated',
-            message: 'Welcome to the Super Admin Control Panel, emukhan580.',
+            message: 'Welcome to the Super Admin Control Panel, emukhan580 (Connected to Cloud SQL).',
             type: 'announcement',
             timestamp: 'Just now',
             isRead: false
@@ -241,9 +262,9 @@ export default function App() {
         ]);
       }
     } else {
-      // Dynamic login for new or custom credentials
+      // Dynamic login for new credentials - register them to Cloud SQL
       const fallbackName = loginEmail.includes('@') ? loginEmail.split('@')[0] : loginEmail;
-      const customUser: UserProfile = {
+      const customUser: ManagedUser = {
         id: `USR-${Math.floor(100000 + Math.random() * 900000)}`,
         username: loginEmail.toLowerCase(),
         fullName: fallbackName.toUpperCase(),
@@ -252,15 +273,24 @@ export default function App() {
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${loginEmail}`,
         vipLevel: 1,
         kycStatus: 'unverified',
-        is2FAEnabled: false,
         role: 'user',
         joinedDate: new Date().toISOString().split('T')[0],
         referralCode: `REF-${Math.floor(100000 + Math.random() * 900000)}`,
         accountStatus: 'active',
-        usdtBalance: 0.00
+        usdtBalance: 0.00,
+        totalDeposit: 0.00,
+        totalWithdraw: 0.00,
+        tradesCount: 0
       };
 
-      setUser(customUser);
+      // Register to Cloud SQL
+      api.registerUser({ ...customUser, password: password || 'password123' });
+      setUsersList(prev => [customUser, ...prev]);
+
+      setUser({
+        ...customUser,
+        is2FAEnabled: false
+      });
       setWallet({
         usdtBalance: 0.00,
         usdBalance: 0.00,
@@ -289,7 +319,7 @@ export default function App() {
     }
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (regPassword && regConfirmPassword && regPassword !== regConfirmPassword) {
       alert('Passwords do not match. Please check and try again.');
@@ -322,8 +352,18 @@ export default function App() {
       tradesCount: 0
     };
 
-    // Save to users list for admin inspection
-    setUsersList(prev => [newManagedUser, ...prev]);
+    // 1. Immediately save to Cloud SQL database permanently
+    try {
+      await api.registerUser({
+        ...newManagedUser,
+        password: regPassword || 'password123'
+      });
+    } catch (err) {
+      console.warn('[Cloud SQL] Register error:', err);
+    }
+
+    // 2. Save to local users list for admin inspection
+    setUsersList(prev => [newManagedUser, ...prev.filter(u => u.id !== newManagedUser.id)]);
 
     // Active User Profile state
     const newProfile: UserProfile = {
@@ -373,14 +413,59 @@ export default function App() {
     setNotifications([
       {
         id: `NT-${Date.now()}`,
-        title: '🎉 Account Created Successfully',
-        message: `Welcome ${formattedName}! Your VIP Reward Wallet account is ready.`,
+        title: '🎉 Account Registered in Cloud Database',
+        message: `Welcome ${formattedName}! Your account has been permanently stored in Cloud SQL.`,
         type: 'system',
         timestamp: 'Just now',
         isRead: false
       }
     ]);
   };
+
+  // Sync state with Cloud SQL on app mount and periodically
+  useEffect(() => {
+    let isMounted = true;
+    const syncWithCloudSql = async () => {
+      try {
+        const [cloudUsers, cloudTxs, cloudKyc, cloudLoans, cloudSettings] = await Promise.all([
+          api.fetchUsers(),
+          api.fetchTransactions(),
+          api.fetchKycRequests(),
+          api.fetchLoans(),
+          api.fetchSettings()
+        ]);
+
+        if (isMounted) {
+          if (cloudUsers && cloudUsers.length > 0) {
+            setUsersList(cloudUsers);
+          }
+          if (cloudTxs && cloudTxs.length > 0) {
+            setTransactions(cloudTxs);
+          }
+          if (cloudKyc && cloudKyc.length > 0) {
+            setKycRequests(cloudKyc);
+          }
+          if (cloudLoans && cloudLoans.length > 0) {
+            setLoan(cloudLoans[0]);
+          }
+          if (cloudSettings) {
+            if (cloudSettings.customerCare) setCustomerCareConfig(cloudSettings.customerCare);
+            if (cloudSettings.wallet) setWalletConfig(cloudSettings.wallet);
+            if (cloudSettings.bonus) setBonusConfig(cloudSettings.bonus);
+          }
+        }
+      } catch (err) {
+        console.warn('[Cloud SQL] Periodic sync warning:', err);
+      }
+    };
+
+    syncWithCloudSql();
+    const interval = setInterval(syncWithCloudSql, 8000); // sync every 8 seconds for multi-device real-time updates
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   // Fetch Live Binance Tickers periodically
   useEffect(() => {
@@ -526,9 +611,10 @@ export default function App() {
   };
 
   // Handler: Deposit Request (Pending Admin Approval)
-  const handleDepositSubmit = (amount: number, asset: string) => {
+  const handleDepositSubmit = async (amount: number, asset: string) => {
     const newTx: TransactionItem = {
       id: `TX-${Math.floor(10000 + Math.random() * 90000)}`,
+      userId: user.id,
       type: 'deposit',
       amount,
       asset,
@@ -539,6 +625,9 @@ export default function App() {
     };
     setTransactions(prev => [newTx, ...prev]);
 
+    // Save permanently to Cloud SQL
+    await api.createTransaction(newTx);
+
     handleAddNotification(
       '⏳ Deposit Submitted (Pending Admin)',
       `Your deposit request of $${amount.toFixed(2)} ${asset} has been submitted. It will be credited once approved by Admin.`,
@@ -547,7 +636,7 @@ export default function App() {
   };
 
   // Handler: Withdraw Request (Pending Admin Approval)
-  const handleWithdrawSubmit = (amount: number, asset: string, address: string) => {
+  const handleWithdrawSubmit = async (amount: number, asset: string, address: string) => {
     // Hold funds while pending
     setWallet(prev => ({
       ...prev,
@@ -557,6 +646,7 @@ export default function App() {
 
     const newTx: TransactionItem = {
       id: `TX-${Math.floor(10000 + Math.random() * 90000)}`,
+      userId: user.id,
       type: 'withdraw',
       amount,
       asset,
@@ -567,6 +657,9 @@ export default function App() {
     };
     setTransactions(prev => [newTx, ...prev]);
 
+    // Save permanently to Cloud SQL
+    await api.createTransaction(newTx);
+
     handleAddNotification(
       '⏳ Withdrawal Submitted (Pending Admin)',
       `Your withdrawal request of $${amount.toFixed(2)} ${asset} has been submitted for Admin approval.`,
@@ -575,11 +668,14 @@ export default function App() {
   };
 
   // Handler: Admin Approve Transaction
-  const handleApproveTransaction = (txId: string) => {
+  const handleApproveTransaction = async (txId: string) => {
     const target = transactions.find(t => t.id === txId);
     if (!target) return;
 
     setTransactions(prev => prev.map(t => t.id === txId ? { ...t, status: 'completed' } : t));
+
+    // Update Cloud SQL
+    await api.updateTransaction(txId, 'completed');
 
     if (target.type === 'deposit') {
       setWallet(prev => ({
@@ -607,11 +703,14 @@ export default function App() {
   };
 
   // Handler: Admin Reject Transaction
-  const handleRejectTransaction = (txId: string) => {
+  const handleRejectTransaction = async (txId: string) => {
     const target = transactions.find(t => t.id === txId);
     if (!target) return;
 
     setTransactions(prev => prev.map(t => t.id === txId ? { ...t, status: 'failed' } : t));
+
+    // Update Cloud SQL
+    await api.updateTransaction(txId, 'failed');
 
     if (target.type === 'deposit') {
       handleAddNotification(
@@ -635,9 +734,12 @@ export default function App() {
   };
 
   // Handlers for User Management System
-  const handleUpdateUserBalance = (userId: string, newBalance: number) => {
+  const handleUpdateUserBalance = async (userId: string, newBalance: number) => {
     setUsersList(prev => prev.map(u => u.id === userId ? { ...u, usdtBalance: newBalance } : u));
     
+    // Save to Cloud SQL
+    await api.updateUser(userId, { usdtBalance: newBalance });
+
     // If target user is main profile (USR-8829401), keep active wallet state in sync
     if (userId === 'USR-8829401' || userId === user.id) {
       setWallet(prev => ({ ...prev, usdtBalance: newBalance, usdBalance: newBalance }));
@@ -649,9 +751,12 @@ export default function App() {
     }
   };
 
-  const handleChangeUserStatus = (userId: string, status: 'active' | 'suspended' | 'banned') => {
+  const handleChangeUserStatus = async (userId: string, status: 'active' | 'suspended' | 'banned') => {
     setUsersList(prev => prev.map(u => u.id === userId ? { ...u, accountStatus: status } : u));
     
+    // Save to Cloud SQL
+    await api.updateUser(userId, { accountStatus: status });
+
     const target = usersList.find(u => u.id === userId);
     if (target) {
       handleAddNotification(
@@ -662,9 +767,12 @@ export default function App() {
     }
   };
 
-  const handleChangeUserVip = (userId: string, vipLevel: number) => {
+  const handleChangeUserVip = async (userId: string, vipLevel: number) => {
     setUsersList(prev => prev.map(u => u.id === userId ? { ...u, vipLevel } : u));
     
+    // Save to Cloud SQL
+    await api.updateUser(userId, { vipLevel });
+
     if (userId === 'USR-8829401' || userId === user.id) {
       setUser(prev => ({ ...prev, vipLevel }));
       handleAddNotification(
@@ -675,9 +783,12 @@ export default function App() {
     }
   };
 
-  const handleChangeUserRole = (userId: string, role: UserRole) => {
+  const handleChangeUserRole = async (userId: string, role: UserRole) => {
     setUsersList(prev => prev.map(u => u.id === userId ? { ...u, role } : u));
     
+    // Save to Cloud SQL
+    await api.updateUser(userId, { role });
+
     if (userId === 'USR-8829401' || userId === user.id) {
       setUser(prev => ({ ...prev, role }));
       setUserRole(role);
@@ -689,10 +800,17 @@ export default function App() {
     }
   };
 
-  const handleAddNewUser = (newUser: ManagedUser) => {
+  const handleAddNewUser = async (newUser: ManagedUser) => {
     setUsersList(prev => [newUser, ...prev]);
+
+    // Save to Cloud SQL
+    await api.registerUser({
+      ...newUser,
+      password: 'password123'
+    });
+
     handleAddNotification(
-      '👤 New Member Created',
+      '👤 New Member Created & Stored in Cloud',
       `Account created for ${newUser.fullName} (${newUser.email}) with $${newUser.usdtBalance.toFixed(2)} USDT balance.`,
       'system'
     );

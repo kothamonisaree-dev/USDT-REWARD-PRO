@@ -115,6 +115,7 @@ export interface CryptoTicker {
 
 export interface TransactionItem {
   id: string;
+  userId?: string;
   type: 'deposit' | 'withdraw' | 'profit' | 'investment' | 'loan' | 'bonus' | 'cashback';
   amount: number;
   asset: string;
