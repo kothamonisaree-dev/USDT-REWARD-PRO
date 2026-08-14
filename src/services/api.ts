@@ -54,6 +54,21 @@ export const api = {
     }
   },
 
+  // 3.1 FETCH SINGLE USER BY ID FROM CLOUD SQL
+  async fetchUserById(userId: string): Promise<ManagedUser | null> {
+    try {
+      const response = await fetch(`/api/users/${userId}`);
+      const data = await response.json();
+      if (response.ok && data.user) {
+        return data.user;
+      }
+      return null;
+    } catch (err) {
+      console.warn('[API] Failed to fetch user by id from Cloud SQL:', err);
+      return null;
+    }
+  },
+
   // 4. UPDATE USER IN CLOUD SQL
   async updateUser(userId: string, updates: Partial<ManagedUser>): Promise<boolean> {
     try {

@@ -3,6 +3,7 @@ import { Gift, Sparkles, CheckCircle2, Lock, Upload, ArrowRight, ShieldCheck, Tr
 import confetti from 'canvas-confetti';
 
 interface BonusRewardCenterProps {
+  userId?: string;
   onClaimWelcomeBonus: (amount: number) => void;
   bonusConfig?: {
     dailyReward: number;
@@ -10,11 +11,20 @@ interface BonusRewardCenterProps {
   };
 }
 
-export const BonusRewardCenter: React.FC<BonusRewardCenterProps> = ({ onClaimWelcomeBonus, bonusConfig }) => {
+export const BonusRewardCenter: React.FC<BonusRewardCenterProps> = ({ userId, onClaimWelcomeBonus, bonusConfig }) => {
   const welcomeAmt = bonusConfig?.welcomeBonus ?? 5.00;
   const dailyAmt = bonusConfig?.dailyReward ?? 5.00;
 
-  const [welcomeClaimed, setWelcomeClaimed] = useState(false);
+  const welcomeStorageKey = `usdt_welcome_claimed_${userId || 'default'}`;
+
+  const [welcomeClaimed, setWelcomeClaimed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(welcomeStorageKey) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   const [day1Status, setDay1Status] = useState<'available' | 'pending' | 'completed'>('available');
   const [day2Status, setDay2Status] = useState<'locked' | 'available' | 'completed'>('locked');
   const [day3Status, setDay3Status] = useState<'locked' | 'available' | 'completed'>('locked');
@@ -32,6 +42,9 @@ export const BonusRewardCenter: React.FC<BonusRewardCenterProps> = ({ onClaimWel
     if (welcomeClaimed) return;
     confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
     setWelcomeClaimed(true);
+    try {
+      localStorage.setItem(welcomeStorageKey, 'true');
+    } catch {}
     onClaimWelcomeBonus(welcomeAmt);
   };
 

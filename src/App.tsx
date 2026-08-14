@@ -50,11 +50,36 @@ import { LandingPage } from './components/LandingPage';
 import { X } from 'lucide-react';
 import logoImg from './assets/images/usdt_reward_pro_logo_1786228642395.jpg';
 
+const SESSION_STORAGE_KEY = 'usdt_reward_pro_active_session_v3';
+
+interface StoredSessionData {
+  isLoggedIn: boolean;
+  userRole: UserRole;
+  user: UserProfile;
+  wallet: WalletState;
+  savedAt: number;
+}
+
+const getStoredSession = (): StoredSessionData | null => {
+  try {
+    const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.isLoggedIn && parsed.user) {
+        return parsed;
+      }
+    }
+  } catch (e) {}
+  return null;
+};
+
 export default function App() {
+  const initialSession = getStoredSession();
+
   const [activeTab, setActiveTab] = useState<NavigationTab>('home');
-  const [userRole, setUserRole] = useState<UserRole>('user');
+  const [userRole, setUserRole] = useState<UserRole>(() => initialSession?.userRole || 'user');
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => !!initialSession?.isLoggedIn);
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
   const [authMode, setAuthMode] = useState<'signin' | 'register'>('signin');
   const [loginEmail, setLoginEmail] = useState<string>('alex.m@usdtpro.com');
@@ -70,12 +95,39 @@ export default function App() {
   const [regReferral, setRegReferral] = useState<string>('');
 
   // Core App State
-  const [user, setUser] = useState<UserProfile>(initialUserProfile);
-  const [wallet, setWallet] = useState<WalletState>(initialWalletState);
+  const [user, setUser] = useState<UserProfile>(() => initialSession?.user || initialUserProfile);
+  const [wallet, setWallet] = useState<WalletState>(() => initialSession?.wallet || initialWalletState);
   const [tickers, setTickers] = useState(initialCryptoTickers);
   const [transactions, setTransactions] = useState<TransactionItem[]>(initialTransactions);
   const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
   const [loan, setLoan] = useState<LoanData>(initialLoanNoticeData);
+
+  // Helper to persist active session to localStorage
+  const saveSession = (
+    u: UserProfile,
+    w: WalletState,
+    r: UserRole,
+    loggedIn: boolean = true
+  ) => {
+    try {
+      if (!loggedIn) {
+        localStorage.removeItem(SESSION_STORAGE_KEY);
+      } else {
+        localStorage.setItem(
+          SESSION_STORAGE_KEY,
+          JSON.stringify({
+            isLoggedIn: true,
+            userRole: r,
+            user: u,
+            wallet: w,
+            savedAt: Date.now()
+          })
+        );
+      }
+    } catch (err) {
+      console.warn('[Session] Storage error:', err);
+    }
+  };
 
   // Platform Config States (Admin Controlled)
   const [plansList, setPlansList] = useState<InvestmentPlan[]>(investmentPlans);
@@ -169,6 +221,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    saveSession(user, wallet, userRole, false);
     setIsLoggedIn(false);
     setShowAuthModal(false);
     setActiveTab('home');
@@ -199,30 +252,43 @@ export default function App() {
         }
       }
 
-      setUserRole(matchedUser.role);
-      setUser(prev => ({
-        ...prev,
-        id: matchedUser!.id,
-        username: matchedUser!.username,
-        fullName: matchedUser!.fullName,
-        email: matchedUser!.email,
-        phone: matchedUser!.phone,
-        vipLevel: matchedUser!.vipLevel,
-        referralCode: matchedUser!.referralCode,
-        avatar: matchedUser!.avatar
-      }));
-      setWallet(prev => ({
-        ...prev,
-        usdtBalance: matchedUser!.usdtBalance,
-        usdBalance: matchedUser!.usdtBalance,
-        totalDeposit: matchedUser!.totalDeposit ?? prev.totalDeposit ?? 0,
-        totalWithdraw: matchedUser!.totalWithdraw ?? prev.totalWithdraw ?? 0,
-        totalProfit: prev.totalProfit ?? 0,
-        activeInvestmentAmount: prev.activeInvestmentAmount ?? 0
-      }));
+      const activeProfile: UserProfile = {
+        id: matchedUser.id,
+        username: matchedUser.username,
+        fullName: matchedUser.fullName,
+        email: matchedUser.email,
+        phone: matchedUser.phone || '+1 (555) 019-2831',
+        vipLevel: matchedUser.vipLevel || 1,
+        referralCode: matchedUser.referralCode || `REF-${Math.floor(100000 + Math.random() * 900000)}`,
+        avatar: matchedUser.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${matchedUser.username}`,
+        kycStatus: matchedUser.kycStatus || 'unverified',
+        is2FAEnabled: false,
+        role: matchedUser.role || 'user',
+        joinedDate: matchedUser.joinedDate || new Date().toISOString().split('T')[0],
+        accountStatus: matchedUser.accountStatus || 'active',
+        usdtBalance: matchedUser.usdtBalance ?? 0
+      };
 
+      const activeWallet: WalletState = {
+        usdtBalance: matchedUser.usdtBalance ?? 0,
+        usdBalance: matchedUser.usdtBalance ?? 0,
+        btcBalance: 0,
+        ethBalance: 0,
+        totalDeposit: matchedUser.totalDeposit ?? 0,
+        totalWithdraw: matchedUser.totalWithdraw ?? 0,
+        totalProfit: matchedUser.totalProfit ?? 0,
+        activeInvestmentAmount: 0,
+        walletAddress: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F'
+      };
+
+      setUserRole(matchedUser.role);
+      setUser(activeProfile);
+      setWallet(activeWallet);
       setIsLoggedIn(true);
       setShowAuthModal(false);
+
+      // Save persistent session so browser reload does not log user out
+      saveSession(activeProfile, activeWallet, matchedUser.role, true);
 
       if (matchedUser.role === 'admin') {
         setActiveTab('admin');
@@ -280,6 +346,7 @@ export default function App() {
         usdtBalance: 0.00,
         totalDeposit: 0.00,
         totalWithdraw: 0.00,
+        totalProfit: 0.00,
         tradesCount: 0
       };
 
@@ -287,11 +354,11 @@ export default function App() {
       api.registerUser({ ...customUser, password: password || 'password123' });
       setUsersList(prev => [customUser, ...prev]);
 
-      setUser({
+      const newProfile: UserProfile = {
         ...customUser,
         is2FAEnabled: false
-      });
-      setWallet({
+      };
+      const newWallet: WalletState = {
         usdtBalance: 0.00,
         usdBalance: 0.00,
         btcBalance: 0.00,
@@ -301,11 +368,17 @@ export default function App() {
         totalProfit: 0.00,
         activeInvestmentAmount: 0.00,
         walletAddress: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F'
-      });
+      };
+
+      setUser(newProfile);
+      setWallet(newWallet);
       setUserRole('user');
       setIsLoggedIn(true);
       setShowAuthModal(false);
       setActiveTab('home');
+
+      saveSession(newProfile, newWallet, 'user', true);
+
       setNotifications([
         {
           id: `NT-${Date.now()}`,
@@ -347,6 +420,7 @@ export default function App() {
       usdtBalance: 0.00,
       totalDeposit: 0.00,
       totalWithdraw: 0.00,
+      totalProfit: 0.00,
       joinedDate: new Date().toISOString().split('T')[0],
       referralCode: refCode,
       tradesCount: 0
@@ -383,8 +457,7 @@ export default function App() {
       usdtBalance: 0.00
     };
 
-    setUser(newProfile);
-    setWallet({
+    const newWallet: WalletState = {
       usdtBalance: 0.00,
       usdBalance: 0.00,
       btcBalance: 0.00,
@@ -394,12 +467,17 @@ export default function App() {
       totalProfit: 0.00,
       activeInvestmentAmount: 0.00,
       walletAddress: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F'
-    });
+    };
 
+    setUser(newProfile);
+    setWallet(newWallet);
     setUserRole('user');
     setIsLoggedIn(true);
     setShowAuthModal(false);
     setActiveTab('home');
+
+    // Save session
+    saveSession(newProfile, newWallet, 'user', true);
 
     // Reset register input fields
     setRegName('');
@@ -438,6 +516,48 @@ export default function App() {
         if (isMounted) {
           if (cloudUsers && cloudUsers.length > 0) {
             setUsersList(cloudUsers);
+
+            // Sync current user's profile and balance if logged in
+            setUser(currUser => {
+              const matchedCloudUser = cloudUsers.find(
+                u => u.id === currUser.id || 
+                     u.username.toLowerCase() === currUser.username.toLowerCase() || 
+                     u.email.toLowerCase() === currUser.email.toLowerCase()
+              );
+
+              if (matchedCloudUser) {
+                const updatedProfile: UserProfile = {
+                  ...currUser,
+                  id: matchedCloudUser.id,
+                  username: matchedCloudUser.username,
+                  fullName: matchedCloudUser.fullName,
+                  email: matchedCloudUser.email,
+                  phone: matchedCloudUser.phone || currUser.phone,
+                  avatar: matchedCloudUser.avatar || currUser.avatar,
+                  vipLevel: matchedCloudUser.vipLevel || currUser.vipLevel,
+                  kycStatus: matchedCloudUser.kycStatus || currUser.kycStatus,
+                  role: matchedCloudUser.role || currUser.role,
+                  accountStatus: matchedCloudUser.accountStatus || currUser.accountStatus,
+                  usdtBalance: matchedCloudUser.usdtBalance ?? currUser.usdtBalance
+                };
+
+                setWallet(currWallet => {
+                  const updatedWallet: WalletState = {
+                    ...currWallet,
+                    usdtBalance: matchedCloudUser.usdtBalance ?? currWallet.usdtBalance,
+                    usdBalance: matchedCloudUser.usdtBalance ?? currWallet.usdBalance,
+                    totalDeposit: matchedCloudUser.totalDeposit ?? currWallet.totalDeposit,
+                    totalWithdraw: matchedCloudUser.totalWithdraw ?? currWallet.totalWithdraw,
+                    totalProfit: matchedCloudUser.totalProfit ?? currWallet.totalProfit
+                  };
+                  saveSession(updatedProfile, updatedWallet, matchedCloudUser.role || 'user', true);
+                  return updatedWallet;
+                });
+
+                return updatedProfile;
+              }
+              return currUser;
+            });
           }
           if (cloudTxs && cloudTxs.length > 0) {
             setTransactions(cloudTxs);
@@ -528,19 +648,29 @@ export default function App() {
       status: 'running'
     };
 
-    // Deduct amount from wallet balance instantly
-    setWallet(prev => ({
-      ...prev,
-      usdtBalance: Math.max(0, prev.usdtBalance - amount),
-      usdBalance: Math.max(0, prev.usdBalance - amount),
-      activeInvestmentAmount: prev.activeInvestmentAmount + amount
-    }));
+    const newUsdt = Math.max(0, wallet.usdtBalance - amount);
+    const updatedWallet: WalletState = {
+      ...wallet,
+      usdtBalance: newUsdt,
+      usdBalance: newUsdt,
+      activeInvestmentAmount: wallet.activeInvestmentAmount + amount
+    };
+    setWallet(updatedWallet);
+
+    const updatedUser: UserProfile = {
+      ...user,
+      usdtBalance: newUsdt
+    };
+    setUser(updatedUser);
+    saveSession(updatedUser, updatedWallet, userRole, true);
+    api.updateUser(user.id, { usdtBalance: newUsdt });
 
     setActiveInvestment(newInv);
 
     // Log transaction
     const newTx: TransactionItem = {
       id: `TX-${Math.floor(10000 + Math.random() * 90000)}`,
+      userId: user.id,
       type: 'investment',
       amount,
       asset: 'USDT',
@@ -549,6 +679,7 @@ export default function App() {
       note: `${plan.title} (${plan.durationSeconds}s)`
     };
     setTransactions(prev => [newTx, ...prev]);
+    api.createTransaction(newTx);
 
     handleAddNotification(
       '🚀 Investment Activated',
@@ -559,20 +690,32 @@ export default function App() {
 
   // Handler: Investment Completed
   const handleInvestmentCompleted = (result: { amount: number; profit: number; total: number; planTitle: string }) => {
-    // Add total returned amount back to wallet
-    setWallet(prev => ({
-      ...prev,
-      usdtBalance: prev.usdtBalance + result.total,
-      usdBalance: prev.usdBalance + result.total,
-      totalProfit: prev.totalProfit + result.profit,
-      activeInvestmentAmount: Math.max(0, prev.activeInvestmentAmount - result.amount)
-    }));
+    const newUsdt = Number((wallet.usdtBalance + result.total).toFixed(2));
+    const newProfit = Number(((wallet.totalProfit || 0) + result.profit).toFixed(2));
+
+    const updatedWallet: WalletState = {
+      ...wallet,
+      usdtBalance: newUsdt,
+      usdBalance: newUsdt,
+      totalProfit: newProfit,
+      activeInvestmentAmount: Math.max(0, wallet.activeInvestmentAmount - result.amount)
+    };
+    setWallet(updatedWallet);
+
+    const updatedUser: UserProfile = {
+      ...user,
+      usdtBalance: newUsdt
+    };
+    setUser(updatedUser);
+    saveSession(updatedUser, updatedWallet, userRole, true);
+    api.updateUser(user.id, { usdtBalance: newUsdt, totalProfit: newProfit });
 
     setActiveInvestment(prev => prev ? { ...prev, status: 'completed' } : null);
 
     // Log transaction
     const newTx: TransactionItem = {
       id: `TX-${Math.floor(10000 + Math.random() * 90000)}`,
+      userId: user.id,
       type: 'profit',
       amount: result.profit,
       asset: 'USDT',
@@ -581,6 +724,7 @@ export default function App() {
       note: `Profit from ${result.planTitle}`
     };
     setTransactions(prev => [newTx, ...prev]);
+    api.createTransaction(newTx);
 
     handleAddNotification(
       '✅ Investment Yield Completed',
@@ -591,15 +735,23 @@ export default function App() {
 
   // Handler: Trade Completed from Live Trading Engine
   const handleTradeCompleted = (record: TradeRecord, newWalletBalance: number) => {
-    setWallet(prev => ({
-      ...prev,
+    const updatedProfit = record.status === 'WIN' ? (wallet.totalProfit || 0) + record.profitAmount : (wallet.totalProfit || 0);
+    const updatedWallet: WalletState = {
+      ...wallet,
       usdtBalance: newWalletBalance,
       usdBalance: newWalletBalance,
-      totalProfit: record.status === 'WIN' ? prev.totalProfit + record.profitAmount : prev.totalProfit
-    }));
+      totalProfit: updatedProfit
+    };
+    setWallet(updatedWallet);
+
+    const updatedUser: UserProfile = { ...user, usdtBalance: newWalletBalance };
+    setUser(updatedUser);
+    saveSession(updatedUser, updatedWallet, userRole, true);
+    api.updateUser(user.id, { usdtBalance: newWalletBalance, totalProfit: updatedProfit });
 
     const newTx: TransactionItem = {
       id: record.id,
+      userId: user.id,
       type: 'profit',
       amount: record.profitAmount,
       asset: `${record.asset} (${record.direction})`,
@@ -608,6 +760,7 @@ export default function App() {
       note: `Trade ${record.status}`
     };
     setTransactions(prev => [newTx, ...prev]);
+    api.createTransaction(newTx);
   };
 
   // Handler: Deposit Request (Pending Admin Approval)
@@ -638,11 +791,18 @@ export default function App() {
   // Handler: Withdraw Request (Pending Admin Approval)
   const handleWithdrawSubmit = async (amount: number, asset: string, address: string) => {
     // Hold funds while pending
-    setWallet(prev => ({
-      ...prev,
-      usdtBalance: Math.max(0, prev.usdtBalance - amount),
-      usdBalance: Math.max(0, prev.usdBalance - amount)
-    }));
+    const newUsdt = Math.max(0, wallet.usdtBalance - amount);
+    const updatedWallet: WalletState = {
+      ...wallet,
+      usdtBalance: newUsdt,
+      usdBalance: newUsdt
+    };
+    setWallet(updatedWallet);
+
+    const updatedUser: UserProfile = { ...user, usdtBalance: newUsdt };
+    setUser(updatedUser);
+    saveSession(updatedUser, updatedWallet, userRole, true);
+    api.updateUser(user.id, { usdtBalance: newUsdt });
 
     const newTx: TransactionItem = {
       id: `TX-${Math.floor(10000 + Math.random() * 90000)}`,
@@ -678,22 +838,41 @@ export default function App() {
     await api.updateTransaction(txId, 'completed');
 
     if (target.type === 'deposit') {
-      setWallet(prev => ({
-        ...prev,
-        usdtBalance: prev.usdtBalance + target.amount,
-        usdBalance: prev.usdBalance + target.amount,
-        totalDeposit: prev.totalDeposit + target.amount
-      }));
+      const targetUserId = target.userId || user.id;
+      const newUsdt = Number((wallet.usdtBalance + target.amount).toFixed(2));
+      const newDeposit = Number(((wallet.totalDeposit || 0) + target.amount).toFixed(2));
+
+      const updatedWallet: WalletState = {
+        ...wallet,
+        usdtBalance: newUsdt,
+        usdBalance: newUsdt,
+        totalDeposit: newDeposit
+      };
+      setWallet(updatedWallet);
+
+      if (targetUserId === user.id) {
+        const updatedUser: UserProfile = { ...user, usdtBalance: newUsdt };
+        setUser(updatedUser);
+        saveSession(updatedUser, updatedWallet, userRole, true);
+      }
+      api.updateUser(targetUserId, { usdtBalance: newUsdt, totalDeposit: newDeposit });
+
       handleAddNotification(
         '💰 Deposit Approved!',
         `Admin has APPROVED your deposit of $${target.amount.toFixed(2)} USDT! Balance credited.`,
         'deposit'
       );
     } else if (target.type === 'withdraw') {
-      setWallet(prev => ({
-        ...prev,
-        totalWithdraw: prev.totalWithdraw + target.amount
-      }));
+      const targetUserId = target.userId || user.id;
+      const newWithdraw = Number(((wallet.totalWithdraw || 0) + target.amount).toFixed(2));
+      const updatedWallet: WalletState = {
+        ...wallet,
+        totalWithdraw: newWithdraw
+      };
+      setWallet(updatedWallet);
+      saveSession(user, updatedWallet, userRole, true);
+      api.updateUser(targetUserId, { totalWithdraw: newWithdraw });
+
       handleAddNotification(
         '✅ Withdrawal Approved!',
         `Admin has APPROVED your withdrawal of $${target.amount.toFixed(2)} USDT! Funds dispatched.`,
@@ -720,11 +899,18 @@ export default function App() {
       );
     } else if (target.type === 'withdraw') {
       // Refund held balance
-      setWallet(prev => ({
-        ...prev,
-        usdtBalance: prev.usdtBalance + target.amount,
-        usdBalance: prev.usdBalance + target.amount
-      }));
+      const newUsdt = Number((wallet.usdtBalance + target.amount).toFixed(2));
+      const updatedWallet: WalletState = {
+        ...wallet,
+        usdtBalance: newUsdt,
+        usdBalance: newUsdt
+      };
+      setWallet(updatedWallet);
+      const updatedUser: UserProfile = { ...user, usdtBalance: newUsdt };
+      setUser(updatedUser);
+      saveSession(updatedUser, updatedWallet, userRole, true);
+      api.updateUser(target.userId || user.id, { usdtBalance: newUsdt });
+
       handleAddNotification(
         '❌ Withdrawal Request Rejected',
         `Admin rejected withdrawal request of $${target.amount.toFixed(2)} USDT. Funds refunded to wallet.`,
@@ -740,9 +926,14 @@ export default function App() {
     // Save to Cloud SQL
     await api.updateUser(userId, { usdtBalance: newBalance });
 
-    // If target user is main profile (USR-8829401), keep active wallet state in sync
-    if (userId === 'USR-8829401' || userId === user.id) {
-      setWallet(prev => ({ ...prev, usdtBalance: newBalance, usdBalance: newBalance }));
+    // If target user is main profile, keep active wallet state in sync
+    if (userId === user.id) {
+      const updatedWallet: WalletState = { ...wallet, usdtBalance: newBalance, usdBalance: newBalance };
+      const updatedUser: UserProfile = { ...user, usdtBalance: newBalance };
+      setWallet(updatedWallet);
+      setUser(updatedUser);
+      saveSession(updatedUser, updatedWallet, userRole, true);
+
       handleAddNotification(
         '💵 Balance Adjusted by Admin',
         `Admin updated your USDT wallet balance to $${newBalance.toFixed(2)} USDT.`,
@@ -773,8 +964,10 @@ export default function App() {
     // Save to Cloud SQL
     await api.updateUser(userId, { vipLevel });
 
-    if (userId === 'USR-8829401' || userId === user.id) {
-      setUser(prev => ({ ...prev, vipLevel }));
+    if (userId === user.id) {
+      const updatedUser: UserProfile = { ...user, vipLevel };
+      setUser(updatedUser);
+      saveSession(updatedUser, wallet, userRole, true);
       handleAddNotification(
         '👑 VIP Tier Upgraded',
         `Congratulations! Admin upgraded your account to VIP ${vipLevel}.`,
@@ -789,9 +982,11 @@ export default function App() {
     // Save to Cloud SQL
     await api.updateUser(userId, { role });
 
-    if (userId === 'USR-8829401' || userId === user.id) {
-      setUser(prev => ({ ...prev, role }));
+    if (userId === user.id) {
+      const updatedUser: UserProfile = { ...user, role };
+      setUser(updatedUser);
       setUserRole(role);
+      saveSession(updatedUser, wallet, role, true);
       handleAddNotification(
         '🛡️ Account Permission Changed',
         `Your user role was updated to ${role.toUpperCase()}.`,
@@ -817,27 +1012,63 @@ export default function App() {
   };
 
   // Handler: Claim Daily Reward
-  const handleClaimDailyReward = (amount: number) => {
-    setWallet(prev => ({
-      ...prev,
-      usdtBalance: prev.usdtBalance + amount,
-      usdBalance: prev.usdBalance + amount
-    }));
+  const handleClaimDailyReward = async (amount: number) => {
+    const newUsdt = Number(((wallet?.usdtBalance ?? 0) + amount).toFixed(2));
+    const newProfit = Number(((wallet?.totalProfit ?? 0) + amount).toFixed(2));
+
+    const updatedWallet: WalletState = {
+      ...wallet,
+      usdtBalance: newUsdt,
+      usdBalance: newUsdt,
+      totalProfit: newProfit
+    };
+    setWallet(updatedWallet);
+
+    const updatedUser: UserProfile = {
+      ...user,
+      usdtBalance: newUsdt
+    };
+    setUser(updatedUser);
+
+    // Save session immediately so browser reload preserves balance!
+    saveSession(updatedUser, updatedWallet, userRole, true);
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    try {
+      localStorage.setItem(`usdt_daily_claim_${user.id || 'default'}_${todayStr}`, 'true');
+    } catch {}
 
     const newTx: TransactionItem = {
       id: `TX-${Math.floor(10000 + Math.random() * 90000)}`,
+      userId: user.id,
       type: 'bonus',
       amount,
       asset: 'USDT',
       status: 'completed',
       date: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      note: 'Daily Login Reward'
+      note: 'Daily Login Reward ($2.50)'
     };
     setTransactions(prev => [newTx, ...prev]);
 
+    // Save immediately to Cloud SQL database permanently!
+    try {
+      await Promise.all([
+        api.updateUser(user.id, {
+          usdtBalance: newUsdt,
+          totalProfit: newProfit
+        }),
+        api.createTransaction(newTx)
+      ]);
+    } catch (err) {
+      console.warn('[Cloud SQL] Daily claim sync warning:', err);
+    }
+
+    // Update in-memory user list so admin sees latest balance
+    setUsersList(prev => prev.map(u => u.id === user.id ? { ...u, usdtBalance: newUsdt, totalProfit: newProfit } : u));
+
     handleAddNotification(
-      '🎁 Daily Reward Claimed',
-      `You earned $${amount.toFixed(2)} USDT for today's login!`,
+      '🎁 Daily Reward Claimed ($2.50)',
+      `$${amount.toFixed(2)} USDT credited to your balance and permanently saved in database!`,
       'announcement'
     );
   };
@@ -1138,6 +1369,7 @@ export default function App() {
             {/* Quick Stats & Daily Reward */}
             <QuickStats
               wallet={wallet}
+              userId={user.id}
               onClaimDailyReward={handleClaimDailyReward}
             />
 
@@ -1214,8 +1446,60 @@ export default function App() {
                 dailyReward: bonusConfig.dailyReward,
                 welcomeBonus: bonusConfig.welcomeBonus
               }}
-              onClaimWelcomeBonus={(amt) => {
-                handleDepositSubmit(amt, 'USDT (Welcome Bonus)');
+              userId={user.id}
+              onClaimWelcomeBonus={async (amt) => {
+                const newUsdt = Number(((wallet?.usdtBalance ?? 0) + amt).toFixed(2));
+                const newProfit = Number(((wallet?.totalProfit ?? 0) + amt).toFixed(2));
+
+                const updatedWallet: WalletState = {
+                  ...wallet,
+                  usdtBalance: newUsdt,
+                  usdBalance: newUsdt,
+                  totalProfit: newProfit
+                };
+                setWallet(updatedWallet);
+
+                const updatedUser: UserProfile = {
+                  ...user,
+                  usdtBalance: newUsdt
+                };
+                setUser(updatedUser);
+
+                // Save persistent session
+                saveSession(updatedUser, updatedWallet, userRole, true);
+
+                const newTx: TransactionItem = {
+                  id: `TX-${Math.floor(10000 + Math.random() * 90000)}`,
+                  userId: user.id,
+                  type: 'bonus',
+                  amount: amt,
+                  asset: 'USDT',
+                  status: 'completed',
+                  date: new Date().toISOString().replace('T', ' ').substring(0, 19),
+                  note: 'Welcome Bonus ($5.00)'
+                };
+                setTransactions(prev => [newTx, ...prev]);
+
+                // Save to Cloud SQL
+                try {
+                  await Promise.all([
+                    api.updateUser(user.id, {
+                      usdtBalance: newUsdt,
+                      totalProfit: newProfit
+                    }),
+                    api.createTransaction(newTx)
+                  ]);
+                } catch (err) {
+                  console.warn('[Cloud SQL] Welcome bonus sync warning:', err);
+                }
+
+                setUsersList(prev => prev.map(u => u.id === user.id ? { ...u, usdtBalance: newUsdt, totalProfit: newProfit } : u));
+
+                handleAddNotification(
+                  '🎉 Welcome Bonus Claimed ($5.00)',
+                  `$${amt.toFixed(2)} USDT credited to your balance and permanently recorded in Cloud SQL!`,
+                  'announcement'
+                );
               }}
             />
           </div>

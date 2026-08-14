@@ -46,6 +46,7 @@ export interface ManagedUser {
   usdtBalance: number;
   totalDeposit: number;
   totalWithdraw: number;
+  totalProfit?: number;
   joinedDate: string;
   referralCode: string;
   tradesCount: number;

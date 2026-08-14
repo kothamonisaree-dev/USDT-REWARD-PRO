@@ -5,11 +5,30 @@ import confetti from 'canvas-confetti';
 
 interface QuickStatsProps {
   wallet: WalletState;
+  userId?: string;
   onClaimDailyReward: (amount: number) => void;
 }
 
-export const QuickStats: React.FC<QuickStatsProps> = ({ wallet, onClaimDailyReward }) => {
-  const [claimedToday, setClaimedToday] = useState(false);
+export const QuickStats: React.FC<QuickStatsProps> = ({ wallet, userId, onClaimDailyReward }) => {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const claimStorageKey = `usdt_daily_claim_${userId || 'default'}_${todayStr}`;
+
+  const [claimedToday, setClaimedToday] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(claimStorageKey) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  // Re-check claim status if user or date changes
+  React.useEffect(() => {
+    try {
+      if (localStorage.getItem(claimStorageKey) === 'true') {
+        setClaimedToday(true);
+      }
+    } catch {}
+  }, [claimStorageKey]);
 
   const handleClaim = () => {
     if (claimedToday) return;
@@ -19,6 +38,9 @@ export const QuickStats: React.FC<QuickStatsProps> = ({ wallet, onClaimDailyRewa
       origin: { y: 0.8 }
     });
     setClaimedToday(true);
+    try {
+      localStorage.setItem(claimStorageKey, 'true');
+    } catch {}
     onClaimDailyReward(2.50); // $2.50 daily login reward
   };
 
