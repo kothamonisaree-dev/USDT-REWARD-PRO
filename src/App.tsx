@@ -1275,7 +1275,7 @@ export default function App() {
                         setLoginEmail(e.target.value);
                         if (authError) setAuthError('');
                       }}
-                      placeholder="e.g. emukhan580 or your email"
+                      placeholder="Enter username or email"
                       className="w-full px-3.5 py-2.5 rounded-xl bg-[#080D18] border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-[#F4C542] placeholder:text-slate-600 font-sans"
                     />
                   </div>
