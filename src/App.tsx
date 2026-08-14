@@ -50,7 +50,7 @@ import { LandingPage } from './components/LandingPage';
 import { X } from 'lucide-react';
 import logoImg from './assets/images/usdt_reward_pro_logo_1786228642395.jpg';
 
-const SESSION_STORAGE_KEY = 'usdt_reward_pro_active_session_v3';
+const SESSION_STORAGE_KEY = 'usdt_reward_pro_active_session_v4';
 
 interface StoredSessionData {
   isLoggedIn: boolean;
@@ -62,14 +62,29 @@ interface StoredSessionData {
 
 const getStoredSession = (): StoredSessionData | null => {
   try {
-    const raw = localStorage.getItem(SESSION_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && parsed.isLoggedIn && parsed.user) {
-        return parsed;
+    // 1. Check localStorage
+    const rawLocal = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (rawLocal) {
+      const parsed = JSON.parse(rawLocal);
+      if (parsed && parsed.isLoggedIn && parsed.user) return parsed;
+    }
+    // 2. Check sessionStorage
+    const rawSession = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (rawSession) {
+      const parsed = JSON.parse(rawSession);
+      if (parsed && parsed.isLoggedIn && parsed.user) return parsed;
+    }
+    // 3. Check document.cookie
+    if (typeof document !== 'undefined' && document.cookie) {
+      const match = document.cookie.match(/usdt_session=([^;]+)/);
+      if (match) {
+        const parsed = JSON.parse(decodeURIComponent(match[1]));
+        if (parsed && parsed.isLoggedIn && parsed.user) return parsed;
       }
     }
-  } catch (e) {}
+  } catch (e) {
+    console.warn('[Session] Read error:', e);
+  }
   return null;
 };
 
@@ -102,27 +117,42 @@ export default function App() {
   const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
   const [loan, setLoan] = useState<LoanData>(initialLoanNoticeData);
 
-  // Helper to persist active session to localStorage
+  // Helper to persist active session across localStorage, sessionStorage, Cookies, and Server
   const saveSession = (
     u: UserProfile,
     w: WalletState,
     r: UserRole,
     loggedIn: boolean = true
   ) => {
+    const sessionData = {
+      isLoggedIn: loggedIn,
+      userRole: r,
+      user: u,
+      wallet: w,
+      savedAt: Date.now()
+    };
+
     try {
       if (!loggedIn) {
         localStorage.removeItem(SESSION_STORAGE_KEY);
+        sessionStorage.removeItem(SESSION_STORAGE_KEY);
+        if (typeof document !== 'undefined') {
+          document.cookie = 'usdt_session=; Path=/; Max-Age=0; SameSite=Lax';
+        }
+        api.saveSessionToServer({ isLoggedIn: false });
       } else {
-        localStorage.setItem(
-          SESSION_STORAGE_KEY,
-          JSON.stringify({
-            isLoggedIn: true,
-            userRole: r,
-            user: u,
-            wallet: w,
-            savedAt: Date.now()
-          })
-        );
+        const json = JSON.stringify(sessionData);
+        localStorage.setItem(SESSION_STORAGE_KEY, json);
+        sessionStorage.setItem(SESSION_STORAGE_KEY, json);
+        if (typeof document !== 'undefined') {
+          document.cookie = `usdt_session=${encodeURIComponent(json)}; Path=/; Max-Age=2592000; SameSite=Lax`;
+        }
+        api.saveSessionToServer({
+          isLoggedIn: true,
+          user: u,
+          wallet: w,
+          role: r
+        });
       }
     } catch (err) {
       console.warn('[Session] Storage error:', err);
@@ -500,9 +530,28 @@ export default function App() {
     ]);
   };
 
-  // Sync state with Cloud SQL on app mount and periodically
+  // Sync state with Cloud SQL on app mount and periodically + restore server session
   useEffect(() => {
     let isMounted = true;
+
+    const initializeAuthAndData = async () => {
+      // 1. Check server-side session fallback on startup
+      try {
+        const serverSession = await api.fetchCurrentSession();
+        if (isMounted && serverSession && serverSession.isLoggedIn && serverSession.user) {
+          setIsLoggedIn(true);
+          setUser(serverSession.user);
+          setWallet(serverSession.wallet);
+          setUserRole(serverSession.role || 'user');
+        }
+      } catch (err) {
+        console.warn('[Session] Server session check error:', err);
+      }
+
+      // 2. Initial cloud SQL sync
+      await syncWithCloudSql();
+    };
+
     const syncWithCloudSql = async () => {
       try {
         const [cloudUsers, cloudTxs, cloudKyc, cloudLoans, cloudSettings] = await Promise.all([
@@ -579,7 +628,7 @@ export default function App() {
       }
     };
 
-    syncWithCloudSql();
+    initializeAuthAndData();
     const interval = setInterval(syncWithCloudSql, 8000); // sync every 8 seconds for multi-device real-time updates
     return () => {
       isMounted = false;

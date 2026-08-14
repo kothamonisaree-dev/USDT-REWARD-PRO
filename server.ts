@@ -11,9 +11,77 @@ async function startServer() {
 
   app.use(express.json());
 
+  let activeServerSession: {
+    isLoggedIn: boolean;
+    user: any;
+    wallet: any;
+    role: string;
+    savedAt: number;
+  } | null = null;
+
   // Health check
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', cloudSql: 'connected', timestamp: new Date().toISOString() });
+  });
+
+  // 0. SESSION MANAGEMENT (Preserves login on browser reload / iframe refresh)
+  app.get('/api/auth/session', async (req, res) => {
+    try {
+      if (activeServerSession && activeServerSession.isLoggedIn && activeServerSession.user) {
+        // Refresh with latest from Cloud SQL database
+        const dbUser = await db.select().from(users).where(eq(users.id, activeServerSession.user.id)).limit(1);
+        if (dbUser.length > 0) {
+          const u = dbUser[0];
+          activeServerSession.user = {
+            ...activeServerSession.user,
+            ...u
+          };
+          activeServerSession.wallet = {
+            ...activeServerSession.wallet,
+            usdtBalance: Number(u.usdtBalance ?? activeServerSession.wallet.usdtBalance ?? 0),
+            usdBalance: Number(u.usdtBalance ?? activeServerSession.wallet.usdBalance ?? 0),
+            totalDeposit: Number(u.totalDeposit ?? activeServerSession.wallet.totalDeposit ?? 0),
+            totalWithdraw: Number(u.totalWithdraw ?? activeServerSession.wallet.totalWithdraw ?? 0),
+            totalProfit: Number(u.totalProfit ?? activeServerSession.wallet.totalProfit ?? 0),
+          };
+        }
+        return res.json({ success: true, session: activeServerSession });
+      }
+      res.json({ success: false, session: null });
+    } catch (err: any) {
+      res.json({ success: false, session: activeServerSession });
+    }
+  });
+
+  app.post('/api/auth/session', (req, res) => {
+    try {
+      const { isLoggedIn, user, wallet, role } = req.body;
+      if (isLoggedIn && user) {
+        activeServerSession = {
+          isLoggedIn: true,
+          user,
+          wallet: wallet || {
+            usdtBalance: Number(user.usdtBalance || 0),
+            usdBalance: Number(user.usdtBalance || 0),
+            btcBalance: 0,
+            ethBalance: 0,
+            totalDeposit: Number(user.totalDeposit || 0),
+            totalWithdraw: Number(user.totalWithdraw || 0),
+            totalProfit: Number(user.totalProfit || 0),
+            activeInvestmentAmount: 0,
+            walletAddress: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F'
+          },
+          role: role || user.role || 'user',
+          savedAt: Date.now()
+        };
+        return res.json({ success: true, session: activeServerSession });
+      } else {
+        activeServerSession = null;
+        return res.json({ success: true, session: null });
+      }
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
   });
 
   // 1. REGISTER USER TO CLOUD SQL

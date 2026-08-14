@@ -1,6 +1,41 @@
-import { ManagedUser, TransactionItem, KycRequestData, LoanData } from '../types';
+import { ManagedUser, TransactionItem, KycRequestData, LoanData, UserProfile, WalletState, UserRole } from '../types';
+
+export interface AppSession {
+  isLoggedIn: boolean;
+  user: UserProfile;
+  wallet: WalletState;
+  role: UserRole;
+  savedAt: number;
+}
 
 export const api = {
+  // 0. SESSION PRESERVATION (Sync with backend on reload)
+  async fetchCurrentSession(): Promise<AppSession | null> {
+    try {
+      const response = await fetch('/api/auth/session');
+      const data = await response.json();
+      if (response.ok && data.success && data.session) {
+        return data.session;
+      }
+      return null;
+    } catch (err) {
+      console.warn('[API] Session fetch warning:', err);
+      return null;
+    }
+  },
+
+  async saveSessionToServer(sessionData: { isLoggedIn: boolean; user?: any; wallet?: any; role?: string }): Promise<void> {
+    try {
+      await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sessionData)
+      });
+    } catch (err) {
+      console.warn('[API] Session save warning:', err);
+    }
+  },
+
   // 1. REGISTER USER IN CLOUD SQL
   async registerUser(userData: Partial<ManagedUser> & { password?: string }): Promise<{ success: boolean; user?: ManagedUser; error?: string }> {
     try {
