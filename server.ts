@@ -112,20 +112,29 @@ async function startServer() {
         return res.status(400).json({ error: 'Username, Full Name, and Email are required' });
       }
 
-      // Check if username already exists in Cloud SQL
-      const existing = await db.select().from(users).where(eq(users.username, username.toLowerCase().trim())).limit(1);
+      let finalUsername = username.toLowerCase().trim();
+      const existing = await db.select().from(users).where(eq(users.username, finalUsername)).limit(1);
       if (existing.length > 0) {
-        return res.status(409).json({ error: 'Username is already taken' });
+        // If same ID or same email, update; otherwise make username unique
+        if ((id && existing[0].id === id) || existing[0].email.toLowerCase() === email.toLowerCase().trim()) {
+          const updated = await db.update(users).set({
+            fullName: fullName.trim(),
+            password: password || existing[0].password,
+            phone: phone || existing[0].phone
+          }).where(eq(users.id, existing[0].id)).returning();
+          return res.status(200).json({ success: true, user: updated[0] });
+        }
+        finalUsername = `${finalUsername}_${Math.floor(100 + Math.random() * 900)}`;
       }
 
       const newUserId = id || `USR-${Math.floor(1000000 + Math.random() * 9000000)}`;
       const userJoinedDate = joinedDate || new Date().toISOString().split('T')[0];
       const userRefCode = referralCode || `REF-${Math.floor(100000 + Math.random() * 900000)}`;
-      const userAvatar = avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`;
+      const userAvatar = avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${finalUsername}`;
 
       const inserted = await db.insert(users).values({
         id: newUserId,
-        username: username.toLowerCase().trim(),
+        username: finalUsername,
         password: password || 'password123',
         fullName: fullName.trim(),
         email: email.toLowerCase().trim(),

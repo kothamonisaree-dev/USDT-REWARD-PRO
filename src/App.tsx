@@ -530,6 +530,80 @@ export default function App() {
     ]);
   };
 
+  const syncWithCloudSql = async () => {
+    try {
+      const [cloudUsers, cloudTxs, cloudKyc, cloudLoans, cloudSettings] = await Promise.all([
+        api.fetchUsers(),
+        api.fetchTransactions(),
+        api.fetchKycRequests(),
+        api.fetchLoans(),
+        api.fetchSettings()
+      ]);
+
+      if (Array.isArray(cloudUsers)) {
+        setUsersList(cloudUsers);
+
+        // Sync current user's profile and balance if logged in
+        setUser(currUser => {
+          const matchedCloudUser = cloudUsers.find(
+            u => u.id === currUser.id || 
+                 u.username.toLowerCase() === currUser.username.toLowerCase() || 
+                 u.email.toLowerCase() === currUser.email.toLowerCase()
+          );
+
+          if (matchedCloudUser) {
+            const updatedProfile: UserProfile = {
+              ...currUser,
+              id: matchedCloudUser.id,
+              username: matchedCloudUser.username,
+              fullName: matchedCloudUser.fullName,
+              email: matchedCloudUser.email,
+              phone: matchedCloudUser.phone || currUser.phone,
+              avatar: matchedCloudUser.avatar || currUser.avatar,
+              vipLevel: matchedCloudUser.vipLevel || currUser.vipLevel,
+              kycStatus: matchedCloudUser.kycStatus || currUser.kycStatus,
+              role: matchedCloudUser.role || currUser.role,
+              accountStatus: matchedCloudUser.accountStatus || currUser.accountStatus,
+              usdtBalance: matchedCloudUser.usdtBalance ?? currUser.usdtBalance
+            };
+
+            setWallet(currWallet => {
+              const updatedWallet: WalletState = {
+                ...currWallet,
+                usdtBalance: matchedCloudUser.usdtBalance ?? currWallet.usdtBalance,
+                usdBalance: matchedCloudUser.usdtBalance ?? currWallet.usdBalance,
+                totalDeposit: matchedCloudUser.totalDeposit ?? currWallet.totalDeposit,
+                totalWithdraw: matchedCloudUser.totalWithdraw ?? currWallet.totalWithdraw,
+                totalProfit: matchedCloudUser.totalProfit ?? currWallet.totalProfit
+              };
+              saveSession(updatedProfile, updatedWallet, matchedCloudUser.role || 'user', true);
+              return updatedWallet;
+            });
+
+            return updatedProfile;
+          }
+          return currUser;
+        });
+      }
+      if (Array.isArray(cloudTxs)) {
+        setTransactions(cloudTxs);
+      }
+      if (Array.isArray(cloudKyc)) {
+        setKycRequests(cloudKyc);
+      }
+      if (cloudLoans && cloudLoans.length > 0) {
+        setLoan(cloudLoans[0]);
+      }
+      if (cloudSettings) {
+        if (cloudSettings.customerCare) setCustomerCareConfig(cloudSettings.customerCare);
+        if (cloudSettings.wallet) setWalletConfig(cloudSettings.wallet);
+        if (cloudSettings.bonus) setBonusConfig(cloudSettings.bonus);
+      }
+    } catch (err) {
+      console.warn('[Cloud SQL] Periodic sync warning:', err);
+    }
+  };
+
   // Sync state with Cloud SQL on app mount and periodically + restore server session
   useEffect(() => {
     let isMounted = true;
@@ -552,84 +626,8 @@ export default function App() {
       await syncWithCloudSql();
     };
 
-    const syncWithCloudSql = async () => {
-      try {
-        const [cloudUsers, cloudTxs, cloudKyc, cloudLoans, cloudSettings] = await Promise.all([
-          api.fetchUsers(),
-          api.fetchTransactions(),
-          api.fetchKycRequests(),
-          api.fetchLoans(),
-          api.fetchSettings()
-        ]);
-
-        if (isMounted) {
-          if (cloudUsers && cloudUsers.length > 0) {
-            setUsersList(cloudUsers);
-
-            // Sync current user's profile and balance if logged in
-            setUser(currUser => {
-              const matchedCloudUser = cloudUsers.find(
-                u => u.id === currUser.id || 
-                     u.username.toLowerCase() === currUser.username.toLowerCase() || 
-                     u.email.toLowerCase() === currUser.email.toLowerCase()
-              );
-
-              if (matchedCloudUser) {
-                const updatedProfile: UserProfile = {
-                  ...currUser,
-                  id: matchedCloudUser.id,
-                  username: matchedCloudUser.username,
-                  fullName: matchedCloudUser.fullName,
-                  email: matchedCloudUser.email,
-                  phone: matchedCloudUser.phone || currUser.phone,
-                  avatar: matchedCloudUser.avatar || currUser.avatar,
-                  vipLevel: matchedCloudUser.vipLevel || currUser.vipLevel,
-                  kycStatus: matchedCloudUser.kycStatus || currUser.kycStatus,
-                  role: matchedCloudUser.role || currUser.role,
-                  accountStatus: matchedCloudUser.accountStatus || currUser.accountStatus,
-                  usdtBalance: matchedCloudUser.usdtBalance ?? currUser.usdtBalance
-                };
-
-                setWallet(currWallet => {
-                  const updatedWallet: WalletState = {
-                    ...currWallet,
-                    usdtBalance: matchedCloudUser.usdtBalance ?? currWallet.usdtBalance,
-                    usdBalance: matchedCloudUser.usdtBalance ?? currWallet.usdBalance,
-                    totalDeposit: matchedCloudUser.totalDeposit ?? currWallet.totalDeposit,
-                    totalWithdraw: matchedCloudUser.totalWithdraw ?? currWallet.totalWithdraw,
-                    totalProfit: matchedCloudUser.totalProfit ?? currWallet.totalProfit
-                  };
-                  saveSession(updatedProfile, updatedWallet, matchedCloudUser.role || 'user', true);
-                  return updatedWallet;
-                });
-
-                return updatedProfile;
-              }
-              return currUser;
-            });
-          }
-          if (cloudTxs && cloudTxs.length > 0) {
-            setTransactions(cloudTxs);
-          }
-          if (cloudKyc && cloudKyc.length > 0) {
-            setKycRequests(cloudKyc);
-          }
-          if (cloudLoans && cloudLoans.length > 0) {
-            setLoan(cloudLoans[0]);
-          }
-          if (cloudSettings) {
-            if (cloudSettings.customerCare) setCustomerCareConfig(cloudSettings.customerCare);
-            if (cloudSettings.wallet) setWalletConfig(cloudSettings.wallet);
-            if (cloudSettings.bonus) setBonusConfig(cloudSettings.bonus);
-          }
-        }
-      } catch (err) {
-        console.warn('[Cloud SQL] Periodic sync warning:', err);
-      }
-    };
-
     initializeAuthAndData();
-    const interval = setInterval(syncWithCloudSql, 8000); // sync every 8 seconds for multi-device real-time updates
+    const interval = setInterval(syncWithCloudSql, 6000); // sync every 6 seconds for multi-device real-time updates
     return () => {
       isMounted = false;
       clearInterval(interval);
@@ -887,44 +885,59 @@ export default function App() {
     await api.updateTransaction(txId, 'completed');
 
     if (target.type === 'deposit') {
-      const targetUserId = target.userId || user.id;
-      const newUsdt = Number((wallet.usdtBalance + target.amount).toFixed(2));
-      const newDeposit = Number(((wallet.totalDeposit || 0) + target.amount).toFixed(2));
+      const targetUserId = target.userId;
+      if (targetUserId) {
+        const targetUser = usersList.find(u => u.id === targetUserId);
+        const currentBal = targetUser ? (targetUser.usdtBalance || 0) : 0;
+        const currentDep = targetUser ? (targetUser.totalDeposit || 0) : 0;
+        const newUsdt = Number((currentBal + target.amount).toFixed(2));
+        const newDeposit = Number((currentDep + target.amount).toFixed(2));
 
-      const updatedWallet: WalletState = {
-        ...wallet,
-        usdtBalance: newUsdt,
-        usdBalance: newUsdt,
-        totalDeposit: newDeposit
-      };
-      setWallet(updatedWallet);
+        setUsersList(prev => prev.map(u => u.id === targetUserId ? { ...u, usdtBalance: newUsdt, totalDeposit: newDeposit } : u));
+        await api.updateUser(targetUserId, { usdtBalance: newUsdt, totalDeposit: newDeposit });
 
-      if (targetUserId === user.id) {
-        const updatedUser: UserProfile = { ...user, usdtBalance: newUsdt };
-        setUser(updatedUser);
-        saveSession(updatedUser, updatedWallet, userRole, true);
+        if (targetUserId === user.id) {
+          const updatedWallet: WalletState = {
+            ...wallet,
+            usdtBalance: newUsdt,
+            usdBalance: newUsdt,
+            totalDeposit: newDeposit
+          };
+          setWallet(updatedWallet);
+          const updatedUser: UserProfile = { ...user, usdtBalance: newUsdt };
+          setUser(updatedUser);
+          saveSession(updatedUser, updatedWallet, userRole, true);
+        }
       }
-      api.updateUser(targetUserId, { usdtBalance: newUsdt, totalDeposit: newDeposit });
 
       handleAddNotification(
         '💰 Deposit Approved!',
-        `Admin has APPROVED your deposit of $${target.amount.toFixed(2)} USDT! Balance credited.`,
+        `Admin has APPROVED deposit of $${target.amount.toFixed(2)} USDT! Balance credited.`,
         'deposit'
       );
     } else if (target.type === 'withdraw') {
-      const targetUserId = target.userId || user.id;
-      const newWithdraw = Number(((wallet.totalWithdraw || 0) + target.amount).toFixed(2));
-      const updatedWallet: WalletState = {
-        ...wallet,
-        totalWithdraw: newWithdraw
-      };
-      setWallet(updatedWallet);
-      saveSession(user, updatedWallet, userRole, true);
-      api.updateUser(targetUserId, { totalWithdraw: newWithdraw });
+      const targetUserId = target.userId;
+      if (targetUserId) {
+        const targetUser = usersList.find(u => u.id === targetUserId);
+        const currentWithdraw = targetUser ? (targetUser.totalWithdraw || 0) : 0;
+        const newWithdraw = Number((currentWithdraw + target.amount).toFixed(2));
+
+        setUsersList(prev => prev.map(u => u.id === targetUserId ? { ...u, totalWithdraw: newWithdraw } : u));
+        await api.updateUser(targetUserId, { totalWithdraw: newWithdraw });
+
+        if (targetUserId === user.id) {
+          const updatedWallet: WalletState = {
+            ...wallet,
+            totalWithdraw: newWithdraw
+          };
+          setWallet(updatedWallet);
+          saveSession(user, updatedWallet, userRole, true);
+        }
+      }
 
       handleAddNotification(
         '✅ Withdrawal Approved!',
-        `Admin has APPROVED your withdrawal of $${target.amount.toFixed(2)} USDT! Funds dispatched.`,
+        `Admin has APPROVED withdrawal of $${target.amount.toFixed(2)} USDT! Funds dispatched.`,
         'withdrawal'
       );
     }
@@ -943,22 +956,31 @@ export default function App() {
     if (target.type === 'deposit') {
       handleAddNotification(
         '❌ Deposit Request Rejected',
-        `Admin rejected your deposit request of $${target.amount.toFixed(2)} USDT.`,
+        `Admin rejected deposit request of $${target.amount.toFixed(2)} USDT.`,
         'deposit'
       );
     } else if (target.type === 'withdraw') {
-      // Refund held balance
-      const newUsdt = Number((wallet.usdtBalance + target.amount).toFixed(2));
-      const updatedWallet: WalletState = {
-        ...wallet,
-        usdtBalance: newUsdt,
-        usdBalance: newUsdt
-      };
-      setWallet(updatedWallet);
-      const updatedUser: UserProfile = { ...user, usdtBalance: newUsdt };
-      setUser(updatedUser);
-      saveSession(updatedUser, updatedWallet, userRole, true);
-      api.updateUser(target.userId || user.id, { usdtBalance: newUsdt });
+      const targetUserId = target.userId;
+      if (targetUserId) {
+        const targetUser = usersList.find(u => u.id === targetUserId);
+        const currentBal = targetUser ? (targetUser.usdtBalance || 0) : 0;
+        const refundedUsdt = Number((currentBal + target.amount).toFixed(2));
+
+        setUsersList(prev => prev.map(u => u.id === targetUserId ? { ...u, usdtBalance: refundedUsdt } : u));
+        await api.updateUser(targetUserId, { usdtBalance: refundedUsdt });
+
+        if (targetUserId === user.id) {
+          const updatedWallet: WalletState = {
+            ...wallet,
+            usdtBalance: refundedUsdt,
+            usdBalance: refundedUsdt
+          };
+          setWallet(updatedWallet);
+          const updatedUser: UserProfile = { ...user, usdtBalance: refundedUsdt };
+          setUser(updatedUser);
+          saveSession(updatedUser, updatedWallet, userRole, true);
+        }
+      }
 
       handleAddNotification(
         '❌ Withdrawal Request Rejected',
@@ -1622,6 +1644,7 @@ export default function App() {
               walletConfig={walletConfig}
               bonusConfig={bonusConfig}
               referralConfig={referralConfig}
+              onRefreshData={syncWithCloudSql}
               onUpdateWalletBalance={(newBal) => {
                 setWallet(prev => ({
                   ...prev,

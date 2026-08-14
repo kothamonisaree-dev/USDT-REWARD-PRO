@@ -158,66 +158,7 @@ export const initialCryptoTickers: CryptoTicker[] = [
   }
 ];
 
-export const initialTransactions: TransactionItem[] = [
-  {
-    id: 'TX-99890',
-    type: 'deposit',
-    amount: 1500.00,
-    asset: 'USDT (TRC20)',
-    status: 'pending',
-    txHash: '0x3f8219e48102a94f881c...',
-    date: '2026-08-07 11:15:00',
-    note: 'Deposit Request (Pending Admin Approval)'
-  },
-  {
-    id: 'TX-99889',
-    type: 'withdraw',
-    amount: 500.00,
-    asset: 'USDT (TRC20)',
-    status: 'pending',
-    txHash: '0x7a9123b48102a94f112a...',
-    date: '2026-08-07 10:45:00',
-    note: 'Withdrawal to 0x71C7... (Pending Admin Approval)'
-  },
-  {
-    id: 'TX-99824',
-    type: 'deposit',
-    amount: 5000.00,
-    asset: 'USDT (TRC20)',
-    status: 'completed',
-    txHash: '0x9d8213e48102a94f923b...',
-    date: '2026-08-06 14:22:10',
-    note: 'Instant Deposit'
-  },
-  {
-    id: 'TX-99811',
-    type: 'profit',
-    amount: 200.00,
-    asset: 'USDT',
-    status: 'completed',
-    date: '2026-08-05 18:04:12',
-    note: '90s Trading Yield (20%)'
-  },
-  {
-    id: 'TX-99790',
-    type: 'withdraw',
-    amount: 1500.00,
-    asset: 'USDT',
-    status: 'completed',
-    txHash: '0x12a84bf940a23e...',
-    date: '2026-08-04 09:15:40',
-    note: 'TRC20 Withdrawal'
-  },
-  {
-    id: 'TX-99752',
-    type: 'bonus',
-    amount: 5.00,
-    asset: 'USDT',
-    status: 'completed',
-    date: '2026-08-01 12:00:00',
-    note: 'Welcome Bonus Claimed'
-  }
-];
+export const initialTransactions: TransactionItem[] = [];
 
 export const initialNotifications: NotificationItem[] = [];
 
