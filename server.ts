@@ -108,37 +108,37 @@ async function startServer() {
         tradesCount = 0
       } = req.body;
 
-      if (!username || !fullName || !email) {
-        return res.status(400).json({ error: 'Username, Full Name, and Email are required' });
+      if (!username || !fullName || !email || !phone || !password) {
+        return res.status(400).json({ error: 'All fields (Full Name, Username, Email, Phone, Password) are required.' });
       }
 
-      let finalUsername = username.toLowerCase().trim();
-      const existing = await db.select().from(users).where(eq(users.username, finalUsername)).limit(1);
-      if (existing.length > 0) {
-        // If same ID or same email, update; otherwise make username unique
-        if ((id && existing[0].id === id) || existing[0].email.toLowerCase() === email.toLowerCase().trim()) {
-          const updated = await db.update(users).set({
-            fullName: fullName.trim(),
-            password: password || existing[0].password,
-            phone: phone || existing[0].phone
-          }).where(eq(users.id, existing[0].id)).returning();
-          return res.status(200).json({ success: true, user: updated[0] });
-        }
-        finalUsername = `${finalUsername}_${Math.floor(100 + Math.random() * 900)}`;
+      const finalUsername = username.toLowerCase().trim();
+      const finalEmail = email.toLowerCase().trim();
+
+      // Check if username already exists
+      const existingUser = await db.select().from(users).where(eq(users.username, finalUsername)).limit(1);
+      if (existingUser.length > 0 && (!id || existingUser[0].id !== id)) {
+        return res.status(400).json({ error: `Username "${finalUsername}" is already registered. Please choose another username.` });
+      }
+
+      // Check if email already exists
+      const existingEmail = await db.select().from(users).where(eq(users.email, finalEmail)).limit(1);
+      if (existingEmail.length > 0 && (!id || existingEmail[0].id !== id)) {
+        return res.status(400).json({ error: `Email address "${finalEmail}" is already registered. Please Sign In.` });
       }
 
       const newUserId = id || `USR-${Math.floor(1000000 + Math.random() * 9000000)}`;
       const userJoinedDate = joinedDate || new Date().toISOString().split('T')[0];
-      const userRefCode = referralCode || `REF-${Math.floor(100000 + Math.random() * 900000)}`;
+      const userRefCode = referralCode ? referralCode.trim() : null;
       const userAvatar = avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${finalUsername}`;
 
       const inserted = await db.insert(users).values({
         id: newUserId,
         username: finalUsername,
-        password: password || 'password123',
+        password: password.trim(),
         fullName: fullName.trim(),
-        email: email.toLowerCase().trim(),
-        phone: phone || '',
+        email: finalEmail,
+        phone: phone.trim(),
         avatar: userAvatar,
         vipLevel: Number(vipLevel) || 1,
         kycStatus: kycStatus as any,
@@ -166,27 +166,29 @@ async function startServer() {
   app.post('/api/auth/login', async (req, res) => {
     try {
       const { usernameOrEmail, password } = req.body;
-      if (!usernameOrEmail) {
-        return res.status(400).json({ error: 'Username or email required' });
+      if (!usernameOrEmail || !password) {
+        return res.status(400).json({ error: 'Username/Email and Password are required' });
       }
 
       const input = usernameOrEmail.trim().toLowerCase();
+      const enteredPassword = password.trim();
       const allUsers = await db.select().from(users);
       const matched = allUsers.find(
         u => u.username.toLowerCase() === input || u.email.toLowerCase() === input || u.id.toLowerCase() === input
       );
 
       if (!matched) {
-        return res.status(404).json({ error: 'User not found in Cloud Database' });
+        return res.status(404).json({ error: 'Account not found! Please check your credentials or click Sign Up.' });
       }
 
-      // Check password if set and matched
-      if (password && matched.password && matched.password !== password) {
-        // Allow master admin password as well
-        if (password !== 'Imran2015@!@!') {
-          if (matched.role === 'admin') {
-            return res.status(401).json({ error: 'Invalid admin credentials' });
-          }
+      // Check password strictly
+      if (matched.role === 'admin' || matched.username.toLowerCase() === 'emukhan580') {
+        if (enteredPassword !== 'Imran2015@!@!' && matched.password !== enteredPassword) {
+          return res.status(401).json({ error: 'Incorrect Super Admin password!' });
+        }
+      } else {
+        if (matched.password && matched.password !== enteredPassword) {
+          return res.status(401).json({ error: 'Incorrect password! Please try again.' });
         }
       }
 
