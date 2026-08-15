@@ -11,7 +11,8 @@ import {
   NotificationItem, 
   LoanData,
   KycRequestData,
-  ManagedUser
+  ManagedUser,
+  WalletConfig
 } from './types';
 import { 
   initialUserProfile, 
@@ -21,7 +22,8 @@ import {
   initialTransactions, 
   initialNotifications, 
   initialLoanNoticeData,
-  initialUsersList
+  initialUsersList,
+  defaultDepositCurrencies
 } from './data/mockData';
 import { fetchLiveBinanceTickers } from './services/binance';
 import { api } from './services/api';
@@ -168,9 +170,10 @@ export default function App() {
     whatsapp: '+1 (800) 555-0199',
     email: 'support@usdtpro.com'
   });
-  const [walletConfig, setWalletConfig] = useState({
+  const [walletConfig, setWalletConfig] = useState<WalletConfig>({
     trc20Address: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
-    minDeposit: 50
+    minDeposit: 50,
+    currencies: defaultDepositCurrencies
   });
   const [bonusConfig, setBonusConfig] = useState({
     dailyReward: 5.00,
@@ -1764,7 +1767,10 @@ export default function App() {
               onAddNewUser={handleAddNewUser}
               onUpdateInvestmentPlans={(updatedPlans) => setPlansList(updatedPlans)}
               onUpdateCustomerCareConfig={(updatedCare) => setCustomerCareConfig(updatedCare)}
-              onUpdateWalletConfig={(updatedWallet) => setWalletConfig(updatedWallet)}
+              onUpdateWalletConfig={(updatedWallet) => {
+                setWalletConfig(updatedWallet);
+                api.saveSetting('wallet', updatedWallet);
+              }}
               onUpdateBonusConfig={(updatedBonus) => setBonusConfig(updatedBonus)}
               onUpdateReferralConfig={(updatedRef) => setReferralConfig(updatedRef)}
               onUpdateLoanNotice={(updatedLoan) => setLoan(updatedLoan)}

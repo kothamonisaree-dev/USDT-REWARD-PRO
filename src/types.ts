@@ -52,6 +52,24 @@ export interface ManagedUser {
   tradesCount: number;
 }
 
+export interface DepositCurrencyWallet {
+  id: string;
+  symbol: string;
+  name: string;
+  network: string;
+  address: string;
+  minDeposit: number;
+  qrCodeUrl?: string;
+  isActive: boolean;
+}
+
+export interface WalletConfig {
+  trc20Address: string;
+  minDeposit: number;
+  qrCodeUrl?: string;
+  currencies?: DepositCurrencyWallet[];
+}
+
 export interface WalletState {
   usdtBalance: number;
   usdBalance: number;

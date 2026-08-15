@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
-import { WalletState, TransactionItem } from '../types';
-import { ArrowDownLeft, ArrowUpRight, Copy, Check, QrCode, Search, Filter, ShieldCheck, Lock, ExternalLink, RefreshCw } from 'lucide-react';
+import { WalletState, TransactionItem, WalletConfig, DepositCurrencyWallet } from '../types';
+import { defaultDepositCurrencies } from '../data/mockData';
+import { ArrowDownLeft, ArrowUpRight, Copy, Check, QrCode, Search, Filter, ShieldCheck, Lock, ExternalLink, RefreshCw, Coins } from 'lucide-react';
 
 interface WalletPageProps {
   wallet: WalletState;
   transactions: TransactionItem[];
   onDepositSubmit: (amount: number, asset: string) => void;
   onWithdrawSubmit: (amount: number, asset: string, address: string) => void;
-  walletConfig?: {
-    trc20Address: string;
-    minDeposit: number;
-  };
+  walletConfig?: WalletConfig;
 }
 
 export const WalletPage: React.FC<WalletPageProps> = ({
@@ -20,18 +18,36 @@ export const WalletPage: React.FC<WalletPageProps> = ({
   onWithdrawSubmit,
   walletConfig
 }) => {
-  const displayAddress = walletConfig?.trc20Address || wallet.walletAddress;
-  const minDepositVal = walletConfig?.minDeposit || 50;
+  const currencies: DepositCurrencyWallet[] = (walletConfig?.currencies && walletConfig.currencies.length > 0)
+    ? walletConfig.currencies.filter(c => c.isActive !== false)
+    : defaultDepositCurrencies.filter(c => c.isActive !== false);
+
+  const [selectedCurrencyId, setSelectedCurrencyId] = useState<string>(currencies[0]?.id || 'usdt-trc20');
+
+  const selectedCurrency = currencies.find(c => c.id === selectedCurrencyId) || currencies[0] || {
+    id: 'usdt-trc20',
+    symbol: 'USDT',
+    name: 'Tether USD (TRC20)',
+    network: 'TRC20 (Tron Network - Low Fee)',
+    address: walletConfig?.trc20Address || wallet.walletAddress,
+    minDeposit: walletConfig?.minDeposit || 50,
+    qrCodeUrl: walletConfig?.qrCodeUrl,
+    isActive: true
+  };
+
+  const displayAddress = selectedCurrency.address || walletConfig?.trc20Address || wallet.walletAddress;
+  const minDepositVal = selectedCurrency.minDeposit || walletConfig?.minDeposit || 50;
+  const activeQrCodeUrl = selectedCurrency.qrCodeUrl || (selectedCurrency.id === 'usdt-trc20' ? walletConfig?.qrCodeUrl : '') || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=8&data=${encodeURIComponent(displayAddress)}`;
 
   const [activeTab, setActiveTab] = useState<'deposit' | 'withdraw' | 'transfer' | 'history'>('deposit');
 
   // Deposit form state
-  const [depositNetwork, setDepositNetwork] = useState<string>('USDT (TRC20)');
   const [depositAmount, setDepositAmount] = useState<string>('100');
   const [copiedAddr, setCopiedAddr] = useState(false);
   const [depositSuccess, setDepositSuccess] = useState(false);
 
   // Withdraw form state
+  const [withdrawAsset, setWithdrawAsset] = useState<string>('USDT (TRC20)');
   const [withdrawAmount, setWithdrawAmount] = useState<string>('100');
   const [withdrawAddress, setWithdrawAddress] = useState<string>('');
   const [withdrawPassword, setWithdrawPassword] = useState<string>('');
@@ -51,10 +67,10 @@ export const WalletPage: React.FC<WalletPageProps> = ({
   const handleDepositConfirm = () => {
     const amt = parseFloat(depositAmount);
     if (isNaN(amt) || amt < minDepositVal) {
-      alert(`Minimum deposit required is $${minDepositVal.toFixed(2)} USDT.`);
+      alert(`Minimum deposit required for ${selectedCurrency.symbol} (${selectedCurrency.network}) is $${minDepositVal.toFixed(2)} USD.`);
       return;
     }
-    onDepositSubmit(amt, depositNetwork);
+    onDepositSubmit(amt, `${selectedCurrency.symbol} (${selectedCurrency.network})`);
     setDepositSuccess(true);
     setTimeout(() => setDepositSuccess(false), 3000);
   };
@@ -79,7 +95,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({
     }
 
     setWithdrawError('');
-    onWithdrawSubmit(amt, depositNetwork, withdrawAddress);
+    onWithdrawSubmit(amt, withdrawAsset, withdrawAddress);
     setWithdrawSuccess(true);
     setWithdrawAddress('');
     setWithdrawPassword('');
@@ -100,7 +116,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({
       {/* Wallet Navigation Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-800 pb-2 overflow-x-auto">
         {[
-          { id: 'deposit', label: 'Deposit Crypto (Min $50)', icon: ArrowDownLeft },
+          { id: 'deposit', label: `Deposit Crypto (Min $${minDepositVal})`, icon: ArrowDownLeft },
           { id: 'withdraw', label: 'Withdraw Crypto', icon: ArrowUpRight },
           { id: 'transfer', label: 'Internal Transfer', icon: ExternalLink },
           { id: 'history', label: 'Transaction History', icon: Filter }
@@ -125,45 +141,90 @@ export const WalletPage: React.FC<WalletPageProps> = ({
       {/* DEPOSIT SECTION */}
       {activeTab === 'deposit' && (
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-          <div className="md:col-span-7 glass-gold-card p-6 space-y-4">
-            <h3 className="text-lg font-extrabold text-slate-100 flex items-center gap-2">
-              <ArrowDownLeft className="w-5 h-5 text-[#F4C542]" /> Deposit Funds to Wallet
-            </h3>
-            <p className="text-xs text-slate-400">
-              Send USDT directly to your unique vault address. Minimum deposit is $50.00 USDT.
-            </p>
+          <div className="md:col-span-7 glass-gold-card p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-extrabold text-slate-100 flex items-center gap-2">
+                  <ArrowDownLeft className="w-5 h-5 text-[#F4C542]" /> Deposit Funds to Vault
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Select your cryptocurrency and network to get the official platform receiving address.
+                </p>
+              </div>
+              <span className="px-2.5 py-1 rounded-full bg-[#F4C542]/10 border border-[#F4C542]/30 text-[#F4C542] text-xs font-bold font-mono">
+                {selectedCurrency.symbol}
+              </span>
+            </div>
 
-            {/* Network Selector */}
+            {/* Quick Currency Selector Pills */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-300">Choose Deposit Currency & Network</label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {currencies.map(curr => {
+                  const isSelected = curr.id === selectedCurrency.id;
+                  return (
+                    <button
+                      key={curr.id}
+                      type="button"
+                      onClick={() => setSelectedCurrencyId(curr.id)}
+                      className={`p-2.5 rounded-xl border text-left flex flex-col transition-all ${
+                        isSelected
+                          ? 'bg-[#F4C542]/15 border-[#F4C542] text-white shadow-md shadow-[#F4C542]/10'
+                          : 'bg-[#080D18] border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold text-xs text-[#F4C542]">{curr.symbol}</span>
+                        {isSelected && <span className="w-2 h-2 rounded-full bg-[#F4C542]" />}
+                      </div>
+                      <span className="text-[10px] text-slate-300 font-medium truncate mt-0.5">
+                        {curr.network.split(' ')[0]}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Dropdown Select Option */}
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">Select Asset & Network</label>
               <select
-                value={depositNetwork}
-                onChange={(e) => setDepositNetwork(e.target.value)}
+                value={selectedCurrency.id}
+                onChange={(e) => setSelectedCurrencyId(e.target.value)}
                 className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 font-mono focus:border-[#F4C542] focus:outline-none"
               >
-                <option value="USDT (TRC20)">USDT - TRC20 (Tron Network - Low Fee)</option>
-                <option value="USDT (ERC20)">USDT - ERC20 (Ethereum Network)</option>
-                <option value="BTC">BTC - Bitcoin Native</option>
-                <option value="ETH">ETH - Ethereum Native</option>
+                {currencies.map(curr => (
+                  <option key={curr.id} value={curr.id}>
+                    {curr.symbol} - {curr.network}
+                  </option>
+                ))}
               </select>
             </div>
 
             {/* Deposit Amount input */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Deposit Amount (USD)</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-slate-300">Deposit Amount (USD / USDT)</label>
+                <span className="text-[11px] text-[#F4C542] font-semibold">Min: ${minDepositVal.toFixed(2)} USD</span>
+              </div>
               <input
                 type="number"
                 value={depositAmount}
                 onChange={(e) => setDepositAmount(e.target.value)}
-                placeholder="Minimum $50 USD"
+                placeholder={`Minimum $${minDepositVal.toFixed(2)} USD`}
                 className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 font-mono focus:border-[#F4C542] focus:outline-none"
               />
-              <span className="text-[11px] text-[#F4C542] mt-1 block">Minimum deposit required: ${minDepositVal.toFixed(2)}</span>
             </div>
 
             {/* Deposit Address Box */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Your Deposit Address</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-slate-300">
+                  Official {selectedCurrency.symbol} Deposit Address ({selectedCurrency.network.split(' ')[0]})
+                </label>
+                <span className="text-[10px] text-slate-400">TRC20 / Direct Vault</span>
+              </div>
               <div className="flex items-center gap-2 p-3 rounded-xl bg-[#080D18] border border-[#F4C542]/30">
                 <span className="font-mono text-xs text-slate-200 truncate flex-1">{displayAddress}</span>
                 <button
@@ -177,39 +238,45 @@ export const WalletPage: React.FC<WalletPageProps> = ({
             </div>
 
             {depositSuccess && (
-              <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-2">
+              <div className="p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-2">
                 <span>⏳</span>
-                <span>Deposit Request Submitted! Pending Admin Approval. Your balance will be credited upon Admin approval.</span>
+                <span>Deposit Request for {depositAmount} USD ({selectedCurrency.symbol}) submitted! Pending Admin Approval. Balance will credit upon confirmation.</span>
               </div>
             )}
 
             <button
               onClick={handleDepositConfirm}
-              className="w-full py-3.5 btn-gold-gradient text-sm font-bold text-black"
+              className="w-full py-3.5 btn-gold-gradient text-sm font-bold text-black shadow-lg shadow-[#F4C542]/20"
             >
-              Confirm Deposit ($50 Minimum)
+              Confirm {selectedCurrency.symbol} Deposit (${minDepositVal.toFixed(0)} Minimum)
             </button>
           </div>
 
           {/* QR Code graphic box */}
           <div className="md:col-span-5 glass-gold-card p-6 flex flex-col items-center justify-center text-center">
-            <div className="w-10 h-10 rounded-full bg-[#F4C542]/10 border border-[#F4C542]/30 flex items-center justify-center text-[#F4C542] mb-3">
+            <div className="w-10 h-10 rounded-full bg-[#F4C542]/10 border border-[#F4C542]/30 flex items-center justify-center text-[#F4C542] mb-2">
               <QrCode className="w-5 h-5" />
             </div>
-            <h4 className="font-bold text-sm text-slate-100">Scan QR Code</h4>
-            <p className="text-xs text-slate-400 mt-1 mb-4">Scan with your exchange or mobile wallet app</p>
+            <h4 className="font-bold text-sm text-slate-100">{selectedCurrency.symbol} Deposit QR</h4>
+            <p className="text-xs text-slate-400 mt-0.5 mb-3">
+              Network: <span className="text-[#F4C542] font-semibold">{selectedCurrency.network}</span>
+            </p>
 
-            <div className="p-4 bg-white rounded-2xl border-4 border-[#F4C542]/40 shadow-xl my-2">
-              {/* Simulated QR Pattern */}
-              <div className="w-40 h-40 bg-slate-900 rounded-lg flex items-center justify-center p-2 relative overflow-hidden">
-                <div className="w-full h-full border-4 border-dashed border-[#F4C542] flex items-center justify-center text-[#F4C542] font-mono text-xs font-bold">
-                  USDT-TRC20
-                </div>
-              </div>
+            <div className="p-3 bg-white rounded-2xl border-4 border-[#F4C542]/50 shadow-2xl my-2 flex items-center justify-center">
+              <img
+                src={activeQrCodeUrl}
+                alt={`${selectedCurrency.symbol} Deposit QR`}
+                className="w-44 h-44 object-contain rounded-lg"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+
+            <div className="text-[11px] font-mono text-slate-300 mt-2 break-all max-w-[240px] truncate">
+              {displayAddress}
             </div>
 
             <div className="text-[11px] text-slate-400 mt-3 font-mono">
-              Auto Confirmations: <strong>1 Block</strong>
+              Auto Confirmations: <strong>1 Block</strong> • Minimum: <strong>${minDepositVal.toFixed(0)} USD</strong>
             </div>
           </div>
         </div>
@@ -225,6 +292,21 @@ export const WalletPage: React.FC<WalletPageProps> = ({
           <div className="p-3 rounded-xl bg-[#080D18] border border-slate-800 text-xs font-mono flex justify-between">
             <span className="text-slate-400">Available USDT Balance:</span>
             <span className="font-bold text-emerald-400">${wallet.usdtBalance.toFixed(2)} USDT</span>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1">Select Withdrawal Asset</label>
+            <select
+              value={withdrawAsset}
+              onChange={(e) => setWithdrawAsset(e.target.value)}
+              className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 font-mono focus:border-[#F4C542] focus:outline-none"
+            >
+              {currencies.map(curr => (
+                <option key={curr.id} value={`${curr.symbol} (${curr.network})`}>
+                  {curr.symbol} - {curr.network}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

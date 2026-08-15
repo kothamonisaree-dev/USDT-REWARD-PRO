@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { UserRole, WalletState, LoanData, KycRequestData, TransactionItem, ManagedUser, InvestmentPlan } from '../types';
+import { UserRole, WalletState, LoanData, KycRequestData, TransactionItem, ManagedUser, InvestmentPlan, WalletConfig, DepositCurrencyWallet } from '../types';
+import { defaultDepositCurrencies } from '../data/mockData';
 import { 
   ShieldCheck, Users, Wallet, DollarSign, AlertTriangle, Send, RefreshCw, Award, CheckCircle2, 
   XCircle, Eye, FileText, Camera, Clock, X, ArrowDownLeft, ArrowUpRight, Search, Filter, Edit3, 
   Ban, UserCheck, Crown, Plus, UserPlus, Sliders, ShieldAlert, Headphones, MessageCircle, Gift, 
-  TrendingUp, Landmark, Share2, Save
+  TrendingUp, Landmark, Share2, Save, Trash2, PlusCircle, Coins, Check, Copy, ExternalLink, Sparkles
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -34,8 +35,8 @@ interface AdminDashboardProps {
   onUpdateInvestmentPlans?: (plans: InvestmentPlan[]) => void;
   customerCareConfig?: { telegram: string; whatsapp: string; email: string };
   onUpdateCustomerCareConfig?: (config: { telegram: string; whatsapp: string; email: string }) => void;
-  walletConfig?: { trc20Address: string; minDeposit: number };
-  onUpdateWalletConfig?: (config: { trc20Address: string; minDeposit: number }) => void;
+  walletConfig?: WalletConfig;
+  onUpdateWalletConfig?: (config: WalletConfig) => void;
   bonusConfig?: { dailyReward: number; welcomeBonus: number };
   onUpdateBonusConfig?: (config: { dailyReward: number; welcomeBonus: number }) => void;
   referralConfig?: { tier1: number; tier2: number; tier3: number };
@@ -67,7 +68,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onUpdateInvestmentPlans,
   customerCareConfig = { telegram: '@USDTRewardProSupport', whatsapp: '+1 (800) 555-0199', email: 'support@usdtpro.com' },
   onUpdateCustomerCareConfig,
-  walletConfig = { trc20Address: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F', minDeposit: 50 },
+  walletConfig = { trc20Address: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F', minDeposit: 50, qrCodeUrl: '', currencies: defaultDepositCurrencies },
   onUpdateWalletConfig,
   bonusConfig = { dailyReward: 5.00, welcomeBonus: 5.00 },
   onUpdateBonusConfig,
@@ -106,6 +107,124 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const [editWalletAddress, setEditWalletAddress] = useState(walletConfig.trc20Address);
   const [editMinDeposit, setEditMinDeposit] = useState(walletConfig.minDeposit.toString());
+  const [editQrCodeUrl, setEditQrCodeUrl] = useState(walletConfig.qrCodeUrl || '');
+
+  // Multi-Currency Wallets State
+  const [currenciesList, setCurrenciesList] = useState<DepositCurrencyWallet[]>(() => {
+    if (walletConfig?.currencies && walletConfig.currencies.length > 0) {
+      return walletConfig.currencies;
+    }
+    return defaultDepositCurrencies;
+  });
+  const [selectedAdminCurrId, setSelectedAdminCurrId] = useState<string>(() => {
+    if (walletConfig?.currencies && walletConfig.currencies.length > 0) {
+      return walletConfig.currencies[0].id;
+    }
+    return defaultDepositCurrencies[0].id;
+  });
+
+  const [showAddCurrencyModal, setShowAddCurrencyModal] = useState(false);
+  const [newCurrSymbol, setNewCurrSymbol] = useState('');
+  const [newCurrName, setNewCurrName] = useState('');
+  const [newCurrNetwork, setNewCurrNetwork] = useState('');
+  const [newCurrAddress, setNewCurrAddress] = useState('');
+  const [newCurrMinDeposit, setNewCurrMinDeposit] = useState('50');
+  const [newCurrQrCode, setNewCurrQrCode] = useState('');
+
+  const [copiedAddrId, setCopiedAddrId] = useState<string | null>(null);
+
+  const handleCopyAddress = (id: string, addr: string) => {
+    navigator.clipboard.writeText(addr);
+    setCopiedAddrId(id);
+    setTimeout(() => setCopiedAddrId(null), 2000);
+  };
+
+  const handleUpdateCurrencyField = (id: string, field: keyof DepositCurrencyWallet, value: any) => {
+    setCurrenciesList(prev => prev.map(c => {
+      if (c.id === id) {
+        return { ...c, [field]: value };
+      }
+      return c;
+    }));
+  };
+
+  const handleToggleCurrencyActive = (id: string) => {
+    if (checkSubAdminGuard()) return;
+    setCurrenciesList(prev => prev.map(c => {
+      if (c.id === id) {
+        return { ...c, isActive: !c.isActive };
+      }
+      return c;
+    }));
+  };
+
+  const handleDeleteCurrency = (id: string) => {
+    if (checkSubAdminGuard()) return;
+    if (currenciesList.length <= 1) {
+      alert('At least one cryptocurrency must remain in the deposit list.');
+      return;
+    }
+    const curr = currenciesList.find(c => c.id === id);
+    if (confirm(`Are you sure you want to delete "${curr?.symbol || 'this asset'}" (${curr?.network || ''})?`)) {
+      const filtered = currenciesList.filter(c => c.id !== id);
+      setCurrenciesList(filtered);
+      if (selectedAdminCurrId === id) {
+        setSelectedAdminCurrId(filtered[0]?.id || '');
+      }
+    }
+  };
+
+  const handleQuickAddPreset = (symbol: string, name: string, network: string, defaultMin: number) => {
+    if (checkSubAdminGuard()) return;
+    const existing = currenciesList.find(c => c.symbol.toLowerCase() === symbol.toLowerCase() && c.network.toLowerCase() === network.toLowerCase());
+    if (existing) {
+      setSelectedAdminCurrId(existing.id);
+      alert(`${symbol} (${network}) is already added. Selected for editing.`);
+      return;
+    }
+    const newCurr: DepositCurrencyWallet = {
+      id: `curr-${Date.now()}-${symbol.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+      symbol,
+      name,
+      network,
+      address: editWalletAddress || '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+      minDeposit: defaultMin,
+      qrCodeUrl: '',
+      isActive: true
+    };
+    setCurrenciesList(prev => [...prev, newCurr]);
+    setSelectedAdminCurrId(newCurr.id);
+    alert(`✅ Added ${symbol} (${network})! Remember to edit its receiving address and click Save.`);
+  };
+
+  const handleCreateNewCurrency = () => {
+    if (checkSubAdminGuard()) return;
+    if (!newCurrSymbol.trim() || !newCurrNetwork.trim() || !newCurrAddress.trim()) {
+      alert('Please fill in Symbol, Network, and Receiving Address.');
+      return;
+    }
+    const minDep = parseFloat(newCurrMinDeposit) || 50;
+    const newCurr: DepositCurrencyWallet = {
+      id: `curr-${Date.now()}-${newCurrSymbol.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+      symbol: newCurrSymbol.toUpperCase().trim(),
+      name: newCurrName.trim() || `${newCurrSymbol.toUpperCase().trim()} (${newCurrNetwork.trim()})`,
+      network: newCurrNetwork.trim(),
+      address: newCurrAddress.trim(),
+      minDeposit: minDep,
+      qrCodeUrl: newCurrQrCode.trim() || undefined,
+      isActive: true
+    };
+    setCurrenciesList(prev => [...prev, newCurr]);
+    setSelectedAdminCurrId(newCurr.id);
+    setShowAddCurrencyModal(false);
+    setNewCurrSymbol('');
+    setNewCurrName('');
+    setNewCurrNetwork('');
+    setNewCurrAddress('');
+    setNewCurrMinDeposit('50');
+    setNewCurrQrCode('');
+    alert(`✅ New deposit asset "${newCurr.symbol}" added successfully! Click "Save All Currencies" to make it live.`);
+  };
 
   const [editTelegram, setEditTelegram] = useState(customerCareConfig.telegram);
   const [editWhatsapp, setEditWhatsapp] = useState(customerCareConfig.whatsapp);
@@ -291,14 +410,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleSaveWalletConfig = () => {
     if (checkSubAdminGuard()) return;
-    const minDep = parseFloat(editMinDeposit);
-    if (isNaN(minDep) || !editWalletAddress) {
-      alert('Please provide valid wallet address and minimum deposit amount.');
-      return;
-    }
+    const trc20Curr = currenciesList.find(c => c.id === 'usdt-trc20' || c.network.toLowerCase().includes('trc20')) || currenciesList[0];
+    const primaryAddress = trc20Curr?.address || editWalletAddress;
+    const primaryMin = trc20Curr?.minDeposit || parseFloat(editMinDeposit) || 50;
+    const primaryQr = trc20Curr?.qrCodeUrl || editQrCodeUrl || undefined;
+
     if (onUpdateWalletConfig) {
-      onUpdateWalletConfig({ trc20Address: editWalletAddress, minDeposit: minDep });
-      alert('✅ Deposit Wallet & Address configuration saved!');
+      onUpdateWalletConfig({
+        trc20Address: primaryAddress,
+        minDeposit: primaryMin,
+        qrCodeUrl: primaryQr,
+        currencies: currenciesList
+      });
+      alert('✅ All Deposit Currencies, Networks & QR Codes successfully saved across the platform!');
     }
   };
 
@@ -394,7 +518,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           { id: 'approvals', label: 'Fund Approvals', icon: CheckCircle2 },
           { id: 'kyc', label: 'KYC Document Review', icon: Award },
           { id: 'invest_plans', label: 'Investment Plans Edit', icon: TrendingUp },
-          { id: 'deposit_wallet', label: 'Deposit Wallet Edit', icon: Wallet },
+          { id: 'deposit_wallet', label: 'Deposit Wallets & Currencies', icon: Wallet },
           { id: 'bonus_center', label: 'Bonus Rewards Edit', icon: Gift },
           { id: 'loan_system', label: 'Loan System Edit', icon: Landmark },
           { id: 'loan_notice', label: 'Official Loan Notice Edit', icon: AlertTriangle },
@@ -1131,49 +1255,321 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* 5. DEPOSIT WALLET TAB */}
-      {adminTab === 'deposit_wallet' && (
-        <div className="glass-gold-card p-6 space-y-6 border-2 border-[#F4C542]/40">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
-                <Wallet className="w-5 h-5 text-[#F4C542]" /> Edit Deposit Wallet & QR Configuration
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Set the official platform receiving wallet address (TRC20 / ERC20) and deposit limits.
-              </p>
-            </div>
-            <button
-              onClick={handleSaveWalletConfig}
-              className="px-4 py-2.5 btn-gold-gradient text-black font-extrabold text-xs flex items-center gap-2 rounded-xl"
-            >
-              <Save className="w-4 h-4" /> Save Wallet Settings
-            </button>
-          </div>
+      {/* 5. DEPOSIT WALLETS & CURRENCIES TAB */}
+      {adminTab === 'deposit_wallet' && (() => {
+        const activeCurr = currenciesList.find(c => c.id === selectedAdminCurrId) || currenciesList[0];
+        const previewQrUrl = activeCurr?.qrCodeUrl || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=8&data=${encodeURIComponent(activeCurr?.address || 'USDT-TRC20')}`;
 
-          <div className="space-y-4 max-w-xl">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Official Deposit Wallet Address (USDT TRC20)</label>
-              <input
-                type="text"
-                value={editWalletAddress}
-                onChange={(e) => setEditWalletAddress(e.target.value)}
-                className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-slate-100 font-mono focus:border-[#F4C542] focus:outline-none"
-              />
+        return (
+          <div className="glass-gold-card p-6 space-y-6 border-2 border-[#F4C542]/40">
+            {/* Header & Main Actions */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
+                  <Coins className="w-5 h-5 text-[#F4C542]" /> Crypto Deposit Currencies & Networks Management
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Configure all accepted crypto assets (USDT, BTC, ETH, BNB, SOL, TRX, etc.), chains, receiving addresses, minimum deposit amounts, and QR codes.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setShowAddCurrencyModal(true)}
+                  className="px-3.5 py-2 rounded-xl bg-[#F4C542]/10 border border-[#F4C542]/40 text-[#F4C542] hover:bg-[#F4C542]/20 font-bold text-xs flex items-center gap-1.5 transition-all shadow-md"
+                >
+                  <PlusCircle className="w-4 h-4" /> + Add New Crypto Currency
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveWalletConfig}
+                  className="px-4 py-2 btn-gold-gradient text-black font-extrabold text-xs flex items-center gap-1.5 rounded-xl shadow-lg shadow-[#F4C542]/20"
+                >
+                  <Save className="w-4 h-4" /> Save All Currencies
+                </button>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Minimum Deposit Amount ($ USDT)</label>
-              <input
-                type="number"
-                value={editMinDeposit}
-                onChange={(e) => setEditMinDeposit(e.target.value)}
-                className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-slate-100 font-mono focus:border-[#F4C542] focus:outline-none"
-              />
+            {/* Quick Presets Bar */}
+            <div className="p-3.5 rounded-2xl bg-[#080D18] border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5 shrink-0">
+                <Sparkles className="w-3.5 h-3.5 text-[#F4C542]" /> Quick Add Popular Presets:
+              </span>
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none flex-wrap">
+                {[
+                  { symbol: 'USDT', name: 'Tether USD (BEP20)', network: 'BEP20 (BNB Smart Chain - Lowest Fee)', min: 20 },
+                  { symbol: 'BNB', name: 'BNB (Binance Coin)', network: 'BEP20 (BNB Smart Chain)', min: 30 },
+                  { symbol: 'SOL', name: 'Solana (SOL)', network: 'Solana Network (Ultra Fast)', min: 30 },
+                  { symbol: 'TRX', name: 'Tron (TRX)', network: 'Tron Network (TRC20)', min: 20 },
+                  { symbol: 'USDC', name: 'USD Coin (ERC20)', network: 'ERC20 (Ethereum Network)', min: 50 },
+                  { symbol: 'DOGE', name: 'Dogecoin (DOGE)', network: 'Dogecoin Native Network', min: 25 },
+                  { symbol: 'LTC', name: 'Litecoin (LTC)', network: 'Litecoin Mainnet', min: 25 },
+                ].map(preset => (
+                  <button
+                    key={`${preset.symbol}-${preset.network}`}
+                    type="button"
+                    onClick={() => handleQuickAddPreset(preset.symbol, preset.name, preset.network, preset.min)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 hover:border-[#F4C542] text-[11px] font-bold text-slate-300 hover:text-white transition-all whitespace-nowrap"
+                  >
+                    + {preset.symbol}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* Currency Selector Horizontal Carousel */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-extrabold text-slate-300 uppercase tracking-wider">
+                  Configured Deposit Assets ({currenciesList.length})
+                </label>
+                <span className="text-[11px] text-slate-400">Click any asset tab below to edit its receiving address & QR</span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
+                {currenciesList.map(curr => {
+                  const isSelected = curr.id === (activeCurr?.id || selectedAdminCurrId);
+                  return (
+                    <div
+                      key={curr.id}
+                      onClick={() => setSelectedAdminCurrId(curr.id)}
+                      className={`p-3 rounded-2xl cursor-pointer transition-all border text-left flex flex-col justify-between ${
+                        isSelected
+                          ? 'bg-[#F4C542]/15 border-[#F4C542] shadow-lg shadow-[#F4C542]/10 ring-1 ring-[#F4C542]'
+                          : 'bg-[#080D18] border-slate-800 hover:border-slate-700 hover:bg-slate-900/60'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1 mb-1.5">
+                        <span className={`px-2 py-0.5 rounded-lg text-xs font-black font-mono ${isSelected ? 'bg-[#F4C542] text-black' : 'bg-slate-800 text-slate-200'}`}>
+                          {curr.symbol}
+                        </span>
+                        <span className={`w-2 h-2 rounded-full ${curr.isActive ? 'bg-emerald-400' : 'bg-rose-500'}`} title={curr.isActive ? 'Active' : 'Disabled'} />
+                      </div>
+                      <div className="text-xs font-bold text-slate-200 truncate">{curr.name}</div>
+                      <div className="text-[10px] text-slate-400 truncate mt-0.5 font-mono">{curr.network}</div>
+                      <div className="mt-2 text-[10px] font-semibold text-[#F4C542]">
+                        Min: ${curr.minDeposit} USD
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Quick Add Button Card */}
+                <button
+                  type="button"
+                  onClick={() => setShowAddCurrencyModal(true)}
+                  className="p-3 rounded-2xl border border-dashed border-[#F4C542]/40 bg-[#F4C542]/5 hover:bg-[#F4C542]/10 transition-all flex flex-col items-center justify-center text-center text-[#F4C542] min-h-[90px]"
+                >
+                  <PlusCircle className="w-5 h-5 mb-1" />
+                  <span className="text-xs font-bold">+ Add Asset</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Selected Currency Edit Panel */}
+            {activeCurr ? (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-3">
+                <div className="lg:col-span-7 space-y-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-1 rounded-xl bg-[#F4C542] text-black font-black font-mono text-sm">
+                        {activeCurr.symbol}
+                      </span>
+                      <div>
+                        <h4 className="font-extrabold text-sm text-slate-100">{activeCurr.name}</h4>
+                        <span className="text-[11px] text-slate-400 font-mono">{activeCurr.network}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleCurrencyActive(activeCurr.id)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                          activeCurr.isActive
+                            ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-300'
+                            : 'bg-slate-800 border border-slate-700 text-slate-400'
+                        }`}
+                      >
+                        {activeCurr.isActive ? '✅ Active on Deposit' : '⏸️ Hidden (Disabled)'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCurrency(activeCurr.id)}
+                        className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 transition-all"
+                        title="Delete Currency"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Asset Symbol (e.g. USDT, BTC)</label>
+                      <input
+                        type="text"
+                        value={activeCurr.symbol}
+                        onChange={(e) => handleUpdateCurrencyField(activeCurr.id, 'symbol', e.target.value.toUpperCase())}
+                        placeholder="USDT"
+                        className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 font-mono focus:border-[#F4C542] focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Asset Display Name</label>
+                      <input
+                        type="text"
+                        value={activeCurr.name}
+                        onChange={(e) => handleUpdateCurrencyField(activeCurr.id, 'name', e.target.value)}
+                        placeholder="Tether USD"
+                        className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:border-[#F4C542] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Blockchain / Network</label>
+                      <input
+                        type="text"
+                        value={activeCurr.network}
+                        onChange={(e) => handleUpdateCurrencyField(activeCurr.id, 'network', e.target.value)}
+                        placeholder="TRC20 (Tron Network)"
+                        className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:border-[#F4C542] focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Minimum Deposit Amount ($ USD)</label>
+                      <input
+                        type="number"
+                        value={activeCurr.minDeposit}
+                        onChange={(e) => handleUpdateCurrencyField(activeCurr.id, 'minDeposit', parseFloat(e.target.value) || 0)}
+                        placeholder="50"
+                        className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 font-mono focus:border-[#F4C542] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center justify-between">
+                      <span>Official Receiving Wallet Address *</span>
+                      <span className="text-[11px] text-slate-400">Users will send funds to this address</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={activeCurr.address}
+                        onChange={(e) => handleUpdateCurrencyField(activeCurr.id, 'address', e.target.value.trim())}
+                        placeholder="Enter receiving crypto wallet address..."
+                        className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 font-mono focus:border-[#F4C542] focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleCopyAddress(activeCurr.id, activeCurr.address)}
+                        className="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 shrink-0 flex items-center gap-1"
+                      >
+                        {copiedAddrId === activeCurr.id ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                        {copiedAddrId === activeCurr.id ? 'Copied' : 'Test Copy'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* QR Image Upload & URL */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Custom Deposit QR Code Image</label>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              if (typeof reader.result === 'string') {
+                                handleUpdateCurrencyField(activeCurr.id, 'qrCodeUrl', reader.result);
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-[#F4C542]/20 file:text-[#F4C542] hover:file:bg-[#F4C542]/30 cursor-pointer bg-[#080D18] border border-slate-700 rounded-xl p-1"
+                      />
+                      {activeCurr.qrCodeUrl && (
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateCurrencyField(activeCurr.id, 'qrCodeUrl', '')}
+                          className="px-3 py-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/30 rounded-xl text-xs font-bold whitespace-nowrap"
+                        >
+                          Reset to Auto QR
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1">Upload a custom QR image or leave blank for dynamic live QR code generation based on the wallet address.</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Or Direct QR Image URL (Optional)</label>
+                    <input
+                      type="text"
+                      value={activeCurr.qrCodeUrl?.startsWith('data:') ? 'Custom Image Uploaded (Base64)' : (activeCurr.qrCodeUrl || '')}
+                      onChange={(e) => handleUpdateCurrencyField(activeCurr.id, 'qrCodeUrl', e.target.value)}
+                      placeholder="https://.../qr.png"
+                      disabled={activeCurr.qrCodeUrl?.startsWith('data:')}
+                      className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-slate-100 font-mono focus:border-[#F4C542] focus:outline-none disabled:opacity-60"
+                    />
+                  </div>
+                </div>
+
+                {/* Right Column: Live User Preview Box */}
+                <div className="lg:col-span-5 flex flex-col items-center justify-center p-6 bg-[#080D18] border border-[#F4C542]/30 rounded-2xl text-center">
+                  <div className="w-full flex items-center justify-between text-xs pb-2 mb-2 border-b border-slate-800">
+                    <span className="font-bold text-slate-300 flex items-center gap-1.5">
+                      <Eye className="w-3.5 h-3.5 text-[#F4C542]" /> Live User Deposit Preview
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${activeCurr.isActive ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'}`}>
+                      {activeCurr.isActive ? 'Active' : 'Disabled'}
+                    </span>
+                  </div>
+
+                  <span className="text-[11px] text-slate-400 mb-2">
+                    How users see this when depositing <strong>{activeCurr.symbol}</strong>
+                  </span>
+                  
+                  <div className="p-3 bg-white rounded-2xl border-4 border-[#F4C542]/50 shadow-2xl my-2 flex items-center justify-center">
+                    <img
+                      src={previewQrUrl}
+                      alt={`${activeCurr.symbol} QR Preview`}
+                      className="w-40 h-40 object-contain rounded-lg"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+
+                  <div className="text-xs font-bold text-slate-200 mt-1">
+                    {activeCurr.symbol} • <span className="text-[#F4C542]">{activeCurr.network}</span>
+                  </div>
+
+                  <div className="mt-2 text-[11px] font-mono text-slate-400 break-all max-w-xs bg-slate-900/90 p-2 rounded-xl border border-slate-800">
+                    {activeCurr.address || 'No receiving address configured'}
+                  </div>
+
+                  <div className="mt-2.5 text-[11px] text-[#F4C542] font-bold bg-[#F4C542]/10 px-3 py-1 rounded-full border border-[#F4C542]/30">
+                    Minimum Deposit: ${activeCurr.minDeposit.toFixed(2)} USD
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-8 text-center text-slate-400 text-xs">
+                No currency selected. Click "+ Add New Crypto Currency" or choose a quick preset above.
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* 6. BONUS REWARDS TAB */}
       {adminTab === 'bonus_center' && (
@@ -2046,6 +2442,136 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </form>
 
+          </div>
+        </div>
+      )}
+
+      {/* ADD NEW CRYPTO DEPOSIT ASSET MODAL */}
+      {showAddCurrencyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="glass-gold-card w-full max-w-lg p-6 rounded-2xl border-2 border-[#F4C542]/60 shadow-2xl relative space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-[#F4C542]/20 flex items-center justify-center text-[#F4C542]">
+                  <Coins className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-100">Add Supported Crypto Currency</h3>
+                  <p className="text-[11px] text-slate-400">Configure new coin, network, receiving address, and QR</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAddCurrencyModal(false)}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleCreateNewCurrency();
+              }}
+              className="space-y-3.5 text-xs"
+            >
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">Currency Symbol *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newCurrSymbol}
+                    onChange={(e) => setNewCurrSymbol(e.target.value.toUpperCase())}
+                    placeholder="e.g. BNB, SOL, TRX, USDT"
+                    className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 font-mono focus:outline-none focus:border-[#F4C542]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">Asset Full Name</label>
+                  <input
+                    type="text"
+                    value={newCurrName}
+                    onChange={(e) => setNewCurrName(e.target.value)}
+                    placeholder="e.g. Binance Coin"
+                    className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-[#F4C542]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">Blockchain / Network *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newCurrNetwork}
+                    onChange={(e) => setNewCurrNetwork(e.target.value)}
+                    placeholder="e.g. BEP20 (BNB Smart Chain)"
+                    className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-[#F4C542]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">Min Deposit ($ USD)</label>
+                  <input
+                    type="number"
+                    value={newCurrMinDeposit}
+                    onChange={(e) => setNewCurrMinDeposit(e.target.value)}
+                    placeholder="50"
+                    className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 font-mono focus:outline-none focus:border-[#F4C542]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-bold mb-1">Receiving Wallet Address *</label>
+                <input
+                  type="text"
+                  required
+                  value={newCurrAddress}
+                  onChange={(e) => setNewCurrAddress(e.target.value.trim())}
+                  placeholder="Enter direct receiving wallet address..."
+                  className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 font-mono focus:outline-none focus:border-[#F4C542]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-bold mb-1">Custom QR Code Image (Optional)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        if (typeof reader.result === 'string') {
+                          setNewCurrQrCode(reader.result);
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="block w-full text-xs text-slate-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-[#F4C542]/20 file:text-[#F4C542] hover:file:bg-[#F4C542]/30 cursor-pointer bg-[#080D18] border border-slate-700 rounded-xl p-1"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAddCurrencyModal(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl btn-gold-gradient text-black font-extrabold shadow-lg shadow-[#F4C542]/10"
+                >
+                  Add Currency
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

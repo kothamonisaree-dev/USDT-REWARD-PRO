@@ -7,7 +7,8 @@ import {
   NotificationItem, 
   LoanData, 
   BonusTask,
-  ManagedUser
+  ManagedUser,
+  DepositCurrencyWallet
 } from '../types';
 
 export const initialUserProfile: UserProfile = {
@@ -312,5 +313,48 @@ export const initialUsersList: ManagedUser[] = [
     joinedDate: '2026-02-01',
     referralCode: 'RAHUL-90',
     tradesCount: 3
+  }
+];
+
+export const defaultDepositCurrencies: DepositCurrencyWallet[] = [
+  {
+    id: 'usdt-trc20',
+    symbol: 'USDT',
+    name: 'Tether USD (TRC20)',
+    network: 'TRC20 (Tron Network - Low Fee)',
+    address: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+    minDeposit: 50,
+    qrCodeUrl: '',
+    isActive: true
+  },
+  {
+    id: 'usdt-erc20',
+    symbol: 'USDT',
+    name: 'Tether USD (ERC20)',
+    network: 'ERC20 (Ethereum Network)',
+    address: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+    minDeposit: 100,
+    qrCodeUrl: '',
+    isActive: true
+  },
+  {
+    id: 'btc-native',
+    symbol: 'BTC',
+    name: 'Bitcoin Native',
+    network: 'Bitcoin Native (BTC)',
+    address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
+    minDeposit: 100,
+    qrCodeUrl: '',
+    isActive: true
+  },
+  {
+    id: 'eth-native',
+    symbol: 'ETH',
+    name: 'Ethereum Native',
+    network: 'Ethereum Native (ERC20)',
+    address: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+    minDeposit: 100,
+    qrCodeUrl: '',
+    isActive: true
   }
 ];
