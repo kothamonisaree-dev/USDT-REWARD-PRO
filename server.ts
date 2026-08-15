@@ -1,9 +1,7 @@
 import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
-import { db } from './src/db/index.ts';
-import { users, kycRequests, transactions, loans, appSettings } from './src/db/schema.ts';
-import { eq, desc } from 'drizzle-orm';
+import { StorageEngine, UserRecord } from './src/db/storageAdapter.ts';
 
 async function startServer() {
   const app = express();
@@ -21,28 +19,26 @@ async function startServer() {
 
   // Health check
   app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', cloudSql: 'connected', timestamp: new Date().toISOString() });
+    res.json({ status: 'ok', database: 'connected', timestamp: new Date().toISOString() });
   });
 
   // 0. SESSION MANAGEMENT (Preserves login on browser reload / iframe refresh)
   app.get('/api/auth/session', async (req, res) => {
     try {
       if (activeServerSession && activeServerSession.isLoggedIn && activeServerSession.user) {
-        // Refresh with latest from Cloud SQL database
-        const dbUser = await db.select().from(users).where(eq(users.id, activeServerSession.user.id)).limit(1);
-        if (dbUser.length > 0) {
-          const u = dbUser[0];
+        const dbUser = await StorageEngine.getUserById(activeServerSession.user.id);
+        if (dbUser) {
           activeServerSession.user = {
             ...activeServerSession.user,
-            ...u
+            ...dbUser
           };
           activeServerSession.wallet = {
             ...activeServerSession.wallet,
-            usdtBalance: Number(u.usdtBalance ?? activeServerSession.wallet.usdtBalance ?? 0),
-            usdBalance: Number(u.usdtBalance ?? activeServerSession.wallet.usdBalance ?? 0),
-            totalDeposit: Number(u.totalDeposit ?? activeServerSession.wallet.totalDeposit ?? 0),
-            totalWithdraw: Number(u.totalWithdraw ?? activeServerSession.wallet.totalWithdraw ?? 0),
-            totalProfit: Number(u.totalProfit ?? activeServerSession.wallet.totalProfit ?? 0),
+            usdtBalance: Number(dbUser.usdtBalance ?? activeServerSession.wallet.usdtBalance ?? 0),
+            usdBalance: Number(dbUser.usdtBalance ?? activeServerSession.wallet.usdBalance ?? 0),
+            totalDeposit: Number(dbUser.totalDeposit ?? activeServerSession.wallet.totalDeposit ?? 0),
+            totalWithdraw: Number(dbUser.totalWithdraw ?? activeServerSession.wallet.totalWithdraw ?? 0),
+            totalProfit: Number(dbUser.totalProfit ?? activeServerSession.wallet.totalProfit ?? 0),
           };
         }
         return res.json({ success: true, session: activeServerSession });
@@ -84,7 +80,7 @@ async function startServer() {
     }
   });
 
-  // 1. REGISTER USER TO CLOUD SQL
+  // 1. REGISTER USER
   app.post('/api/auth/register', async (req, res) => {
     try {
       const {
@@ -115,24 +111,22 @@ async function startServer() {
       const finalUsername = username.toLowerCase().trim();
       const finalEmail = email.toLowerCase().trim();
 
-      // Check if username already exists
-      const existingUser = await db.select().from(users).where(eq(users.username, finalUsername)).limit(1);
-      if (existingUser.length > 0 && (!id || existingUser[0].id !== id)) {
+      const existingUser = await StorageEngine.findUserByUsernameOrEmail(finalUsername);
+      if (existingUser && (!id || existingUser.id !== id)) {
         return res.status(400).json({ error: `Username "${finalUsername}" is already registered. Please choose another username.` });
       }
 
-      // Check if email already exists
-      const existingEmail = await db.select().from(users).where(eq(users.email, finalEmail)).limit(1);
-      if (existingEmail.length > 0 && (!id || existingEmail[0].id !== id)) {
+      const existingEmail = await StorageEngine.findUserByUsernameOrEmail(finalEmail);
+      if (existingEmail && (!id || existingEmail.id !== id)) {
         return res.status(400).json({ error: `Email address "${finalEmail}" is already registered. Please Sign In.` });
       }
 
       const newUserId = id || `USR-${Math.floor(1000000 + Math.random() * 9000000)}`;
       const userJoinedDate = joinedDate || new Date().toISOString().split('T')[0];
-      const userRefCode = referralCode ? referralCode.trim() : null;
+      const userRefCode = referralCode ? referralCode.trim() : `REF-${Math.floor(100000 + Math.random() * 900000)}`;
       const userAvatar = avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${finalUsername}`;
 
-      const inserted = await db.insert(users).values({
+      const newUser: UserRecord = {
         id: newUserId,
         username: finalUsername,
         password: password.trim(),
@@ -151,18 +145,21 @@ async function startServer() {
         joinedDate: userJoinedDate,
         referralCode: userRefCode,
         tradesCount: Number(tradesCount) || 0,
-        is2FAEnabled: false
-      }).returning();
+        is2FAEnabled: false,
+        createdAt: new Date().toISOString()
+      };
 
-      console.log(`[Cloud SQL] User registered permanently: ${inserted[0].username} (${inserted[0].id})`);
-      res.status(201).json({ success: true, user: inserted[0] });
+      const saved = await StorageEngine.saveUser(newUser);
+
+      console.log(`[Supabase / Store] User registered permanently: ${saved.username} (${saved.id})`);
+      return res.status(201).json({ success: true, user: saved });
     } catch (error: any) {
-      console.error('[Cloud SQL] Registration error:', error);
-      res.status(500).json({ error: error.message || 'Failed to save user in Cloud SQL' });
+      console.error('[Registration error]:', error);
+      return res.status(500).json({ error: error.message || 'Failed to register account' });
     }
   });
 
-  // 2. LOGIN USER FROM CLOUD SQL
+  // 2. LOGIN USER
   app.post('/api/auth/login', async (req, res) => {
     try {
       const { usernameOrEmail, password } = req.body;
@@ -172,10 +169,8 @@ async function startServer() {
 
       const input = usernameOrEmail.trim().toLowerCase();
       const enteredPassword = password.trim();
-      const allUsers = await db.select().from(users);
-      const matched = allUsers.find(
-        u => u.username.toLowerCase() === input || u.email.toLowerCase() === input || u.id.toLowerCase() === input
-      );
+      
+      const matched = await StorageEngine.findUserByUsernameOrEmail(input);
 
       if (!matched) {
         return res.status(404).json({ error: 'Account not found! Please check your credentials or click Sign Up.' });
@@ -192,40 +187,40 @@ async function startServer() {
         }
       }
 
-      res.json({ success: true, user: matched });
+      return res.json({ success: true, user: matched });
     } catch (error: any) {
-      console.error('[Cloud SQL] Login error:', error);
-      res.status(500).json({ error: error.message });
+      console.error('[Login error]:', error);
+      return res.status(500).json({ error: error.message || 'Login failed' });
     }
   });
 
-  // 3. GET ALL USERS FOR ADMIN FROM CLOUD SQL
+  // 3. GET ALL USERS FOR ADMIN
   app.get('/api/users', async (req, res) => {
     try {
-      const userList = await db.select().from(users).orderBy(desc(users.createdAt));
+      const userList = await StorageEngine.getAllUsers();
       res.json({ success: true, users: userList });
     } catch (error: any) {
-      console.error('[Cloud SQL] Fetch users error:', error);
+      console.error('[Fetch users error]:', error);
       res.status(500).json({ error: error.message });
     }
   });
 
-  // 4. GET SINGLE USER BY ID FROM CLOUD SQL
+  // 4. GET SINGLE USER BY ID
   app.get('/api/users/:id', async (req, res) => {
     try {
       const { id } = req.params;
-      const found = await db.select().from(users).where(eq(users.id, id)).limit(1);
-      if (!found.length) {
+      const found = await StorageEngine.getUserById(id);
+      if (!found) {
         return res.status(404).json({ error: 'User not found' });
       }
-      res.json({ success: true, user: found[0] });
+      res.json({ success: true, user: found });
     } catch (error: any) {
-      console.error('[Cloud SQL] Fetch user error:', error);
+      console.error('[Fetch user error]:', error);
       res.status(500).json({ error: error.message });
     }
   });
 
-  // 5. UPDATE USER IN CLOUD SQL (Admin balance update, status change, etc.)
+  // 5. UPDATE USER (Admin balance update, status change, etc.)
   app.put('/api/users/:id', async (req, res) => {
     try {
       const { id } = req.params;
@@ -244,25 +239,25 @@ async function startServer() {
       if (req.body.tradesCount !== undefined) updateData.tradesCount = Number(req.body.tradesCount);
       if (req.body.is2FAEnabled !== undefined) updateData.is2FAEnabled = Boolean(req.body.is2FAEnabled);
 
-      const updated = await db.update(users).set(updateData).where(eq(users.id, id)).returning();
-      if (!updated.length) {
+      const updated = await StorageEngine.updateUser(id, updateData);
+      if (!updated) {
         return res.status(404).json({ error: 'User not found to update' });
       }
-      console.log(`[Cloud SQL] User updated: ${id}`, updateData);
-      res.json({ success: true, user: updated[0] });
+      console.log(`[Store] User updated: ${id}`, updateData);
+      res.json({ success: true, user: updated });
     } catch (error: any) {
-      console.error('[Cloud SQL] Update user error:', error);
+      console.error('[Update user error]:', error);
       res.status(500).json({ error: error.message });
     }
   });
 
-  // 6. TRANSACTIONS APIS (Cloud SQL)
+  // 6. TRANSACTIONS APIS
   app.get('/api/transactions', async (req, res) => {
     try {
-      const txs = await db.select().from(transactions).orderBy(desc(transactions.createdAt));
+      const txs = await StorageEngine.getAllTransactions();
       res.json({ success: true, transactions: txs });
     } catch (error: any) {
-      console.error('[Cloud SQL] Fetch tx error:', error);
+      console.error('[Fetch tx error]:', error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -273,7 +268,7 @@ async function startServer() {
       const txId = id || `TX-${Math.floor(10000 + Math.random() * 90000)}`;
       const txDate = date || new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-      const inserted = await db.insert(transactions).values({
+      const saved = await StorageEngine.saveTransaction({
         id: txId,
         userId: userId || null,
         type,
@@ -282,12 +277,13 @@ async function startServer() {
         status: status as any,
         txHash: txHash || null,
         date: txDate,
-        note: note || null
-      }).returning();
+        note: note || null,
+        createdAt: new Date().toISOString()
+      });
 
-      res.status(201).json({ success: true, transaction: inserted[0] });
+      res.status(201).json({ success: true, transaction: saved });
     } catch (error: any) {
-      console.error('[Cloud SQL] Insert tx error:', error);
+      console.error('[Insert tx error]:', error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -300,21 +296,21 @@ async function startServer() {
       if (status) updateData.status = status;
       if (note) updateData.note = note;
 
-      const updated = await db.update(transactions).set(updateData).where(eq(transactions.id, id)).returning();
-      res.json({ success: true, transaction: updated[0] });
+      const updated = await StorageEngine.updateTransaction(id, updateData);
+      res.json({ success: true, transaction: updated });
     } catch (error: any) {
-      console.error('[Cloud SQL] Update tx error:', error);
+      console.error('[Update tx error]:', error);
       res.status(500).json({ error: error.message });
     }
   });
 
-  // 7. KYC REQUESTS APIS (Cloud SQL)
+  // 7. KYC REQUESTS APIS
   app.get('/api/kyc', async (req, res) => {
     try {
-      const requests = await db.select().from(kycRequests).orderBy(desc(kycRequests.createdAt));
+      const requests = await StorageEngine.getAllKyc();
       res.json({ success: true, requests });
     } catch (error: any) {
-      console.error('[Cloud SQL] Fetch KYC error:', error);
+      console.error('[Fetch KYC error]:', error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -325,7 +321,7 @@ async function startServer() {
       const kycId = id || `KYC-${Math.floor(1000 + Math.random() * 9000)}`;
       const subTime = submittedAt || new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-      const inserted = await db.insert(kycRequests).values({
+      const saved = await StorageEngine.saveKyc({
         id: kycId,
         userId,
         userName,
@@ -337,15 +333,16 @@ async function startServer() {
         backDocUrl: backDocUrl || null,
         selfieDocUrl: selfieDocUrl || null,
         submittedAt: subTime,
-        status: 'pending'
-      }).returning();
+        status: 'pending',
+        createdAt: new Date().toISOString()
+      });
 
-      // Update user KYC status to pending in users table
-      await db.update(users).set({ kycStatus: 'pending' }).where(eq(users.id, userId));
+      // Update user KYC status to pending
+      await StorageEngine.updateUser(userId, { kycStatus: 'pending' });
 
-      res.status(201).json({ success: true, request: inserted[0] });
+      res.status(201).json({ success: true, request: saved });
     } catch (error: any) {
-      console.error('[Cloud SQL] Submit KYC error:', error);
+      console.error('[Submit KYC error]:', error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -355,29 +352,29 @@ async function startServer() {
       const { id } = req.params;
       const { status, rejectionReason, userId } = req.body;
 
-      const updated = await db.update(kycRequests).set({
+      const updated = await StorageEngine.updateKyc(id, {
         status: status as any,
         rejectionReason: rejectionReason || null
-      }).where(eq(kycRequests.id, id)).returning();
+      });
 
       if (userId && (status === 'verified' || status === 'rejected')) {
-        await db.update(users).set({ kycStatus: status as any }).where(eq(users.id, userId));
+        await StorageEngine.updateUser(userId, { kycStatus: status as any });
       }
 
-      res.json({ success: true, request: updated[0] });
+      res.json({ success: true, request: updated });
     } catch (error: any) {
-      console.error('[Cloud SQL] Update KYC error:', error);
+      console.error('[Update KYC error]:', error);
       res.status(500).json({ error: error.message });
     }
   });
 
-  // 8. LOANS APIS (Cloud SQL)
+  // 8. LOANS APIS
   app.get('/api/loans', async (req, res) => {
     try {
-      const loanList = await db.select().from(loans).orderBy(desc(loans.createdAt));
+      const loanList = await StorageEngine.getAllLoans();
       res.json({ success: true, loans: loanList });
     } catch (error: any) {
-      console.error('[Cloud SQL] Fetch loans error:', error);
+      console.error('[Fetch loans error]:', error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -387,7 +384,7 @@ async function startServer() {
       const { id, userId, amount, termDays, interestRate, interestAmount, totalRepayment, loanDate, dueDate, borrowerName, username, phone, nidPassportUrl, bankCardMasked } = req.body;
       const loanId = id || `L-${Math.floor(10000 + Math.random() * 90000)}`;
 
-      const inserted = await db.insert(loans).values({
+      const saved = await StorageEngine.saveLoan({
         id: loanId,
         userId: userId || null,
         amount: Number(amount) || 0,
@@ -402,31 +399,24 @@ async function startServer() {
         username: username || 'user',
         phone: phone || '',
         nidPassportUrl: nidPassportUrl || null,
-        bankCardMasked: bankCardMasked || null
-      }).returning();
+        bankCardMasked: bankCardMasked || null,
+        createdAt: new Date().toISOString()
+      });
 
-      res.status(201).json({ success: true, loan: inserted[0] });
+      res.status(201).json({ success: true, loan: saved });
     } catch (error: any) {
-      console.error('[Cloud SQL] Create loan error:', error);
+      console.error('[Create loan error]:', error);
       res.status(500).json({ error: error.message });
     }
   });
 
-  // 9. APP SETTINGS APIS (Cloud SQL)
+  // 9. APP SETTINGS APIS
   app.get('/api/settings', async (req, res) => {
     try {
-      const settings = await db.select().from(appSettings);
-      const settingsMap: Record<string, any> = {};
-      settings.forEach(s => {
-        try {
-          settingsMap[s.key] = JSON.parse(s.value);
-        } catch {
-          settingsMap[s.key] = s.value;
-        }
-      });
-      res.json({ success: true, settings: settingsMap });
+      const settings = await StorageEngine.getSettings();
+      res.json({ success: true, settings });
     } catch (error: any) {
-      console.error('[Cloud SQL] Fetch settings error:', error);
+      console.error('[Fetch settings error]:', error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -435,23 +425,10 @@ async function startServer() {
     try {
       const { key, value } = req.body;
       if (!key) return res.status(400).json({ error: 'Key required' });
-      const stringValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
-
-      const saved = await db.insert(appSettings).values({
-        key,
-        value: stringValue,
-        updatedAt: new Date()
-      }).onConflictDoUpdate({
-        target: appSettings.key,
-        set: {
-          value: stringValue,
-          updatedAt: new Date()
-        }
-      }).returning();
-
-      res.json({ success: true, setting: saved[0] });
+      await StorageEngine.saveSetting(key, value);
+      res.json({ success: true, key, value });
     } catch (error: any) {
-      console.error('[Cloud SQL] Save settings error:', error);
+      console.error('[Save settings error]:', error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -472,7 +449,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 USDT REWARD PRO Full-Stack Server running on http://0.0.0.0:${PORT} with Cloud SQL PostgreSQL backend`);
+    console.log(`🚀 USDT REWARD PRO Server running on http://0.0.0.0:${PORT} with Supabase & Resilient Persistence`);
   });
 }
 
