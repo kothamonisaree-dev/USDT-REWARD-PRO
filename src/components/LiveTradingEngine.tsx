@@ -42,12 +42,26 @@ export const LiveTradingEngine: React.FC<LiveTradingEngineProps> = ({
     amount: number;
     entryPrice: number;
     durationSeconds: number;
+    startTime: number;
+    endTime: number;
     secondsRemaining: number;
     returnPercentage: number;
   } | null>(null);
 
   // Result card overlay
   const [lastResult, setLastResult] = useState<TradeRecord | null>(null);
+
+  // Synchronized refs to prevent timer drift and stale closures
+  const candlesRef = useRef(candles);
+  candlesRef.current = candles;
+  const activeTickerRef = useRef(activeTicker);
+  activeTickerRef.current = activeTicker;
+  const walletRef = useRef(wallet);
+  walletRef.current = wallet;
+  const onTradeCompletedRef = useRef(onTradeCompleted);
+  onTradeCompletedRef.current = onTradeCompleted;
+  const onAddNotificationRef = useRef(onAddNotification);
+  onAddNotificationRef.current = onAddNotification;
 
   // Initialize & update candlestick data live
   useEffect(() => {
@@ -82,78 +96,95 @@ export const LiveTradingEngine: React.FC<LiveTradingEngineProps> = ({
     return () => clearInterval(interval);
   }, [activeTicker.price]);
 
-  // Active Trade Live Countdown
+  // Precision Real-Time Active Trade Live Countdown (immune to re-render latency and drift)
   useEffect(() => {
     if (!activeTrade) return;
 
-    if (activeTrade.secondsRemaining > 0) {
-      const timer = setTimeout(() => {
-        setActiveTrade(prev => prev ? { ...prev, secondsRemaining: prev.secondsRemaining - 1 } : null);
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
+    const targetEndTime = activeTrade.endTime;
 
-    // When countdown reaches ZERO -> Calculate Exit Price & Win/Loss
-    const exitPrice = candles.length > 0 ? candles[candles.length - 1].close : activeTicker.price;
-    const isWin = activeTrade.direction === 'BUY' 
-      ? exitPrice >= activeTrade.entryPrice 
-      : exitPrice <= activeTrade.entryPrice;
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const remainingMs = targetEndTime - now;
+      const remainingSecs = Math.max(0, Math.ceil(remainingMs / 1000));
 
-    const profitAmount = isWin ? (activeTrade.amount * activeTrade.returnPercentage) / 100 : 0;
-    const totalReturned = isWin ? activeTrade.amount + profitAmount : 0;
-    const status: 'WIN' | 'LOSS' = isWin ? 'WIN' : 'LOSS';
+      if (remainingSecs <= 0 || remainingMs <= 0) {
+        clearInterval(interval);
 
-    // Format LA Timezone
-    const now = new Date();
-    const laTimeStr = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/Los_Angeles',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
-    }).format(now) + ' (LA, USA)';
+        // When countdown reaches ZERO -> Calculate Exit Price & Win/Loss with latest data
+        const latestCandles = candlesRef.current;
+        const latestTicker = activeTickerRef.current;
+        const currentWallet = walletRef.current;
 
-    const record: TradeRecord = {
-      id: `TRD-${Math.floor(100000 + Math.random() * 900000)}`,
-      asset: activeTrade.asset,
-      direction: activeTrade.direction,
-      amount: activeTrade.amount,
-      entryPrice: activeTrade.entryPrice,
-      exitPrice,
-      returnPercentage: activeTrade.returnPercentage,
-      profitAmount,
-      totalReturned,
-      status,
-      durationSeconds: activeTrade.durationSeconds,
-      timestamp: laTimeStr
-    };
+        const exitPrice = latestCandles.length > 0 
+          ? latestCandles[latestCandles.length - 1].close 
+          : (latestTicker?.price || activeTrade.entryPrice);
 
-    // Wallet update: If WIN, +totalReturned; If LOSS, balance was deducted on start, return 0
-    const newWalletBalance = isWin 
-      ? wallet.usdtBalance + totalReturned 
-      : wallet.usdtBalance; // amount was already deducted on trade launch
+        const isWin = activeTrade.direction === 'BUY' 
+          ? exitPrice >= activeTrade.entryPrice 
+          : exitPrice <= activeTrade.entryPrice;
 
-    setLastResult(record);
-    setActiveTrade(null);
-    onTradeCompleted(record, newWalletBalance);
+        const profitAmount = isWin ? (activeTrade.amount * activeTrade.returnPercentage) / 100 : 0;
+        const totalReturned = isWin ? activeTrade.amount + profitAmount : 0;
+        const status: 'WIN' | 'LOSS' = isWin ? 'WIN' : 'LOSS';
 
-    if (isWin) {
-      confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
-      onAddNotification(
-        '✅ Trade Completed Successfully',
-        `🎉 Congratulations! You earned +$${profitAmount.toFixed(2)} USD on ${record.asset}. Wallet balance updated.`
-      );
-    } else {
-      onAddNotification(
-        '❌ Trade Finished',
-        `📉 Trade finished on ${record.asset}. Better luck next time. Wallet balance updated.`
-      );
-    }
+        // Format LA Timezone
+        const nowObj = new Date();
+        const laTimeStr = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/Los_Angeles',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        }).format(nowObj) + ' (LA, USA)';
 
-  }, [activeTrade, candles, activeTicker.price, wallet.usdtBalance, onTradeCompleted, onAddNotification]);
+        const record: TradeRecord = {
+          id: `TRD-${Math.floor(100000 + Math.random() * 900000)}`,
+          asset: activeTrade.asset,
+          direction: activeTrade.direction,
+          amount: activeTrade.amount,
+          entryPrice: activeTrade.entryPrice,
+          exitPrice,
+          returnPercentage: activeTrade.returnPercentage,
+          profitAmount,
+          totalReturned,
+          status,
+          durationSeconds: activeTrade.durationSeconds,
+          timestamp: laTimeStr
+        };
+
+        const newWalletBalance = isWin 
+          ? currentWallet.usdtBalance + profitAmount 
+          : Math.max(0, currentWallet.usdtBalance - activeTrade.amount);
+
+        setLastResult(record);
+        setActiveTrade(null);
+        onTradeCompletedRef.current(record, newWalletBalance);
+
+        if (isWin) {
+          confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
+          onAddNotificationRef.current(
+            '✅ Trade Completed Successfully',
+            `🎉 Congratulations! You earned +$${profitAmount.toFixed(2)} USD on ${record.asset}. Wallet balance updated.`
+          );
+        } else {
+          onAddNotificationRef.current(
+            '❌ Trade Finished',
+            `📉 Trade finished on ${record.asset}. Better luck next time. Wallet balance updated.`
+          );
+        }
+      } else {
+        setActiveTrade(prev => {
+          if (!prev || prev.secondsRemaining === remainingSecs) return prev;
+          return { ...prev, secondsRemaining: remainingSecs };
+        });
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [activeTrade?.endTime]);
 
   // Handle duration choice
   const handleSelectDuration = (dur: number) => {
@@ -190,6 +221,7 @@ export const LiveTradingEngine: React.FC<LiveTradingEngineProps> = ({
     }
 
     const currentPrice = candles.length > 0 ? candles[candles.length - 1].close : activeTicker.price;
+    const now = Date.now();
 
     setActiveTrade({
       asset: activeTicker.name,
@@ -197,6 +229,8 @@ export const LiveTradingEngine: React.FC<LiveTradingEngineProps> = ({
       amount: tradeAmount,
       entryPrice: currentPrice,
       durationSeconds: tradingDuration,
+      startTime: now,
+      endTime: now + tradingDuration * 1000,
       secondsRemaining: tradingDuration,
       returnPercentage: returnRate
     });

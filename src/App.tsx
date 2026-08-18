@@ -686,17 +686,31 @@ export default function App() {
     };
   }, []);
 
-  // Active Investment Countdown Timer (1 second interval)
+  // Active Investment Precision Real-time Countdown Timer
   useEffect(() => {
     if (!activeInvestment || activeInvestment.status !== 'running') return;
 
-    if (activeInvestment.secondsRemaining > 0) {
-      const timer = setTimeout(() => {
-        setActiveInvestment(prev => prev ? { ...prev, secondsRemaining: prev.secondsRemaining - 1 } : null);
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [activeInvestment]);
+    const targetEndTime = (activeInvestment.startTime || Date.now()) + activeInvestment.durationSeconds * 1000;
+
+    const checkInterval = setInterval(() => {
+      const now = Date.now();
+      const remainingMs = targetEndTime - now;
+      const remainingSecs = Math.max(0, Math.ceil(remainingMs / 1000));
+
+      setActiveInvestment(prev => {
+        if (!prev || prev.status !== 'running') return null;
+        if (remainingSecs <= 0) {
+          return { ...prev, secondsRemaining: 0 };
+        }
+        if (prev.secondsRemaining !== remainingSecs) {
+          return { ...prev, secondsRemaining: remainingSecs };
+        }
+        return prev;
+      });
+    }, 100);
+
+    return () => clearInterval(checkInterval);
+  }, [activeInvestment?.startTime, activeInvestment?.durationSeconds, activeInvestment?.status]);
 
   // Handler: Add Notification
   const handleAddNotification = (title: string, message: string, type: 'trading' | 'deposit' | 'withdrawal' | 'system' | 'announcement' = 'system') => {
