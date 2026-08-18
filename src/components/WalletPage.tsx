@@ -80,15 +80,50 @@ export const WalletPage: React.FC<WalletPageProps> = ({
       alert('Please upload a valid image screenshot (PNG, JPG, JPEG, WEBP).');
       return;
     }
-    if (file.size > 8 * 1024 * 1024) {
-      alert('Image size exceeds 8MB. Please upload a smaller image.');
+    if (file.size > 15 * 1024 * 1024) {
+      alert('Image size exceeds 15MB. Please upload a smaller image.');
       return;
     }
+
     const reader = new FileReader();
     reader.onload = (e) => {
-      if (e.target?.result) {
-        setDepositProofImage(e.target.result as string);
-      }
+      const rawDataUrl = e.target?.result as string;
+      if (!rawDataUrl) return;
+
+      // Compress via Canvas
+      const img = new Image();
+      img.onload = () => {
+        const maxWidth = 1200;
+        const maxHeight = 1200;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL('image/jpeg', 0.82);
+          setDepositProofImage(compressed);
+        } else {
+          setDepositProofImage(rawDataUrl);
+        }
+      };
+      img.onerror = () => {
+        setDepositProofImage(rawDataUrl);
+      };
+      img.src = rawDataUrl;
     };
     reader.readAsDataURL(file);
   };

@@ -87,6 +87,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  // Live Auto-Refresh every 3 seconds for instant multi-device transaction and user sync
+  useEffect(() => {
+    if (onRefreshData) {
+      onRefreshData();
+      const interval = setInterval(() => {
+        onRefreshData();
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [onRefreshData, adminTab]);
+
   useEffect(() => {
     if (initialTab) {
       setAdminTab(initialTab as any);
@@ -244,6 +255,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Selected Transaction Proof Slip Modal
   const [previewTxProofModal, setPreviewTxProofModal] = useState<TransactionItem | null>(null);
+
+  // Fund Approvals Queue Filter & Search
+  const [approvalFilter, setApprovalFilter] = useState<'all' | 'pending' | 'deposit' | 'withdraw' | 'completed' | 'failed'>('all');
+  const [approvalSearchQuery, setApprovalSearchQuery] = useState('');
 
   // User Management States
   const [userSearchQuery, setUserSearchQuery] = useState('');
@@ -913,167 +928,267 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       )}
 
       {/* 2. FUND APPROVALS MODULE */}
-      {adminTab === 'approvals' && (
-        <div className="glass-gold-card p-6 space-y-4 border-2 border-emerald-500/30">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <h3 className="text-sm font-extrabold text-slate-100 flex items-center gap-2">
-              <Wallet className="w-5 h-5 text-emerald-400" /> Deposit & Withdrawal Approval Queue
-            </h3>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleManualRefresh}
-                disabled={isRefreshing}
-                className="px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1.5 rounded-lg shrink-0 transition-colors"
-                title="Refresh transactions from database"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isRefreshing ? 'animate-spin' : ''}`} />
-                {isRefreshing ? 'Syncing...' : 'Live Refresh'}
-              </button>
+      {adminTab === 'approvals' && (() => {
+        const rawApprovals = transactions.filter(t => t.type === 'deposit' || t.type === 'withdraw');
+        const pendingCount = rawApprovals.filter(t => t.status === 'pending').length;
+        const depositCount = rawApprovals.filter(t => t.type === 'deposit').length;
+        const withdrawCount = rawApprovals.filter(t => t.type === 'withdraw').length;
 
-              <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-bold flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5" /> {transactions.filter(t => (t.type === 'deposit' || t.type === 'withdraw') && t.status === 'pending').length} Pending Approval
-              </span>
+        const filteredApprovals = rawApprovals.filter(tx => {
+          // Status / Type filter
+          if (approvalFilter === 'pending' && tx.status !== 'pending') return false;
+          if (approvalFilter === 'completed' && tx.status !== 'completed') return false;
+          if (approvalFilter === 'failed' && tx.status !== 'failed') return false;
+          if (approvalFilter === 'deposit' && tx.type !== 'deposit') return false;
+          if (approvalFilter === 'withdraw' && tx.type !== 'withdraw') return false;
+
+          // Search query
+          if (approvalSearchQuery.trim()) {
+            const q = approvalSearchQuery.toLowerCase();
+            const userForTx = usersList.find(u => u.id === tx.userId);
+            const matchesId = tx.id.toLowerCase().includes(q);
+            const matchesTxHash = (tx.txHash || '').toLowerCase().includes(q);
+            const matchesNote = (tx.note || '').toLowerCase().includes(q);
+            const matchesAsset = (tx.asset || '').toLowerCase().includes(q);
+            const matchesAmount = tx.amount.toString().includes(q);
+            const matchesUser = userForTx
+              ? userForTx.fullName.toLowerCase().includes(q) ||
+                userForTx.username.toLowerCase().includes(q) ||
+                userForTx.email.toLowerCase().includes(q)
+              : false;
+
+            return matchesId || matchesTxHash || matchesNote || matchesAsset || matchesAmount || matchesUser;
+          }
+
+          return true;
+        });
+
+        return (
+          <div className="glass-gold-card p-6 space-y-4 border-2 border-emerald-500/30">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
+                  <Wallet className="w-5 h-5 text-emerald-400" /> Deposit & Withdrawal Approval Queue
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Review user deposits, verify attached payment screenshots, and credit balances
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleManualRefresh}
+                  disabled={isRefreshing}
+                  className="px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1.5 rounded-lg shrink-0 transition-colors"
+                  title="Refresh transactions from database"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  {isRefreshing ? 'Syncing...' : 'Live Refresh'}
+                </button>
+
+                <span className="px-2.5 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-1.5 animate-pulse">
+                  <Clock className="w-3.5 h-3.5" /> {pendingCount} Pending
+                </span>
+              </div>
             </div>
-        </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[900px]">
-            <thead>
-              <tr className="border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase bg-[#080D18]">
-                <th className="p-3">Tx ID</th>
-                <th className="p-3">User Account</th>
-                <th className="p-3">Type</th>
-                <th className="p-3">Amount</th>
-                <th className="p-3">Asset / Network</th>
-                <th className="p-3">Payment Proof / Slip</th>
-                <th className="p-3">Requested At</th>
-                <th className="p-3">Status</th>
-                <th className="p-3 text-right">Admin Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60 font-mono text-xs">
-              {transactions.filter(t => t.type === 'deposit' || t.type === 'withdraw').length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="p-6 text-center text-slate-500 italic">
-                    No deposit or withdrawal requests found.
-                  </td>
-                </tr>
-              ) : (
-                transactions.filter(t => t.type === 'deposit' || t.type === 'withdraw').map((tx) => {
-                  const userForTx = usersList.find(u => u.id === tx.userId);
-                  return (
-                    <tr key={tx.id} className="hover:bg-slate-800/30 transition-colors">
-                      <td className="p-3 font-bold text-slate-200">
-                        <div>{tx.id}</div>
-                        {tx.txHash && (
-                          <div className="text-[10px] text-slate-400 font-mono truncate max-w-[120px]" title={tx.txHash}>
-                            {tx.txHash}
-                          </div>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        <div className="font-sans">
-                          <div className="font-bold text-slate-100 text-xs flex items-center gap-1">
-                            {userForTx ? (
-                              <>
-                                <span>{userForTx.fullName}</span>
-                                <span className="text-[10px] text-[#F4C542] font-mono">(@{userForTx.username})</span>
-                              </>
-                            ) : (
-                              <span className="text-slate-300 font-mono">{tx.userId || 'Guest User'}</span>
-                            )}
-                          </div>
-                          <div className="text-[10px] text-slate-400 font-mono">
-                            {userForTx ? `${userForTx.id} • ${userForTx.email}` : (tx.userId || 'Unknown ID')}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-3">
-                        {tx.type === 'deposit' ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center gap-1 w-fit">
-                            <ArrowDownLeft className="w-3 h-3" /> DEPOSIT
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-blue-500/20 text-blue-400 border border-blue-500/40 flex items-center gap-1 w-fit">
-                            <ArrowUpRight className="w-3 h-3" /> WITHDRAWAL
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-3 font-extrabold text-slate-100 font-mono text-sm">
-                        ${tx.amount.toFixed(2)} USDT
-                      </td>
-                      <td className="p-3 text-slate-300 font-sans text-xs">
-                        {tx.asset}
-                        {tx.note && <div className="text-[10px] text-slate-400 font-mono">{tx.note}</div>}
-                      </td>
-                      <td className="p-3">
-                        {tx.proofImage ? (
-                          <button
-                            onClick={() => setPreviewTxProofModal(tx)}
-                            className="flex items-center gap-2 p-1.5 rounded-xl bg-[#F4C542]/10 border border-[#F4C542]/40 text-[#F4C542] hover:bg-[#F4C542]/25 transition-all text-[11px] font-bold group"
-                            title="Click to view full payment screenshot"
-                          >
-                            <img
-                              src={tx.proofImage}
-                              alt="Slip Thumbnail"
-                              className="w-8 h-8 rounded-lg object-cover border border-[#F4C542]/50 group-hover:scale-105 transition-transform"
-                            />
-                            <div className="text-left font-sans">
-                              <span className="flex items-center gap-1 text-[11px] font-extrabold text-slate-100">
-                                <Eye className="w-3 h-3 text-[#F4C542]" /> Inspect Slip
-                              </span>
-                              <span className="text-[9px] text-emerald-400 font-mono font-semibold">Attached</span>
-                            </div>
-                          </button>
-                        ) : (
-                          <span className="text-[11px] text-slate-500 italic font-sans">No Slip</span>
-                        )}
-                      </td>
-                      <td className="p-3 text-slate-400 font-sans text-[11px]">{tx.date}</td>
-                      <td className="p-3">
-                        {tx.status === 'completed' ? (
-                          <span className="px-2.5 py-1 rounded-md text-[10px] font-extrabold bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center gap-1 w-fit">
-                            <CheckCircle2 className="w-3 h-3" /> APPROVED
-                          </span>
-                        ) : tx.status === 'failed' ? (
-                          <span className="px-2.5 py-1 rounded-md text-[10px] font-extrabold bg-red-500/20 border border-red-500/40 text-red-400 flex items-center gap-1 w-fit">
-                            <XCircle className="w-3 h-3" /> REJECTED
-                          </span>
-                        ) : (
-                          <span className="px-2.5 py-1 rounded-md text-[10px] font-extrabold bg-amber-500/20 border border-amber-500/40 text-amber-300 flex items-center gap-1 w-fit animate-pulse">
-                            <Clock className="w-3 h-3" /> PENDING ADMIN
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-3 text-right">
-                        {tx.status === 'pending' ? (
-                          <div className="flex items-center justify-end gap-1.5 font-sans">
-                            <button
-                              onClick={() => safeApproveTx(tx.id)}
-                              className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-black text-[11px] font-extrabold flex items-center gap-1 transition-all shadow-md shadow-emerald-500/20"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5" /> Approve Done
-                            </button>
-                            <button
-                              onClick={() => safeRejectTx(tx.id)}
-                              className="px-2.5 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/40 text-[11px] font-bold flex items-center gap-1 transition-colors"
-                            >
-                              <XCircle className="w-3.5 h-3.5" /> Reject
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-[11px] text-slate-500 italic font-sans">Processed</span>
-                        )}
+            {/* Filter Tabs & Search Bar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
+              <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-thin">
+                <button
+                  onClick={() => setApprovalFilter('all')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${
+                    approvalFilter === 'all'
+                      ? 'bg-slate-700 text-white border border-slate-600'
+                      : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 border border-slate-800'
+                  }`}
+                >
+                  All ({rawApprovals.length})
+                </button>
+                <button
+                  onClick={() => setApprovalFilter('pending')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                    approvalFilter === 'pending'
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50'
+                      : 'bg-slate-900/80 text-slate-400 hover:text-amber-300 border border-slate-800'
+                  }`}
+                >
+                  <Clock className="w-3 h-3" /> Pending ({pendingCount})
+                </button>
+                <button
+                  onClick={() => setApprovalFilter('deposit')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors flex items-center gap-1 ${
+                    approvalFilter === 'deposit'
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
+                      : 'bg-slate-900/80 text-slate-400 hover:text-emerald-400 border border-slate-800'
+                  }`}
+                >
+                  <ArrowDownLeft className="w-3 h-3" /> Deposits ({depositCount})
+                </button>
+                <button
+                  onClick={() => setApprovalFilter('withdraw')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors flex items-center gap-1 ${
+                    approvalFilter === 'withdraw'
+                      ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
+                      : 'bg-slate-900/80 text-slate-400 hover:text-blue-400 border border-slate-800'
+                  }`}
+                >
+                  <ArrowUpRight className="w-3 h-3" /> Withdrawals ({withdrawCount})
+                </button>
+              </div>
+
+              <div className="relative w-full sm:w-64">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search user, ID, hash..."
+                  value={approvalSearchQuery}
+                  onChange={(e) => setApprovalSearchQuery(e.target.value)}
+                  className="w-full bg-[#080D18] border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-[#F4C542] focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[900px]">
+                <thead>
+                  <tr className="border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase bg-[#080D18]">
+                    <th className="p-3">Tx ID</th>
+                    <th className="p-3">User Account</th>
+                    <th className="p-3">Type</th>
+                    <th className="p-3">Amount</th>
+                    <th className="p-3">Asset / Network</th>
+                    <th className="p-3">Payment Proof / Slip</th>
+                    <th className="p-3">Requested At</th>
+                    <th className="p-3">Status</th>
+                    <th className="p-3 text-right">Admin Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 font-mono text-xs">
+                  {filteredApprovals.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="p-8 text-center text-slate-500 italic">
+                        No requests matching the selected filter/search.
                       </td>
                     </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-        </div>
-      )}
+                  ) : (
+                    filteredApprovals.map((tx) => {
+                      const userForTx = usersList.find(u => u.id === tx.userId);
+                      return (
+                        <tr key={tx.id} className="hover:bg-slate-800/30 transition-colors">
+                          <td className="p-3 font-bold text-slate-200">
+                            <div>{tx.id}</div>
+                            {tx.txHash && (
+                              <div className="text-[10px] text-slate-400 font-mono truncate max-w-[120px]" title={tx.txHash}>
+                                {tx.txHash}
+                              </div>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            <div className="font-sans">
+                              <div className="font-bold text-slate-100 text-xs flex items-center gap-1">
+                                {userForTx ? (
+                                  <>
+                                    <span>{userForTx.fullName}</span>
+                                    <span className="text-[10px] text-[#F4C542] font-mono">(@{userForTx.username})</span>
+                                  </>
+                                ) : (
+                                  <span className="text-slate-300 font-mono">{tx.userId || 'Guest User'}</span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-slate-400 font-mono">
+                                {userForTx ? `${userForTx.id} • ${userForTx.email}` : (tx.userId || 'Unknown ID')}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            {tx.type === 'deposit' ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center gap-1 w-fit">
+                                <ArrowDownLeft className="w-3 h-3" /> DEPOSIT
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-blue-500/20 text-blue-400 border border-blue-500/40 flex items-center gap-1 w-fit">
+                                <ArrowUpRight className="w-3 h-3" /> WITHDRAWAL
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3 font-extrabold text-slate-100 font-mono text-sm">
+                            ${tx.amount.toFixed(2)} USDT
+                          </td>
+                          <td className="p-3 text-slate-300 font-sans text-xs">
+                            {tx.asset}
+                            {tx.note && <div className="text-[10px] text-slate-400 font-mono">{tx.note}</div>}
+                          </td>
+                          <td className="p-3">
+                            {tx.proofImage ? (
+                              <button
+                                onClick={() => setPreviewTxProofModal(tx)}
+                                className="flex items-center gap-2 p-1.5 rounded-xl bg-[#F4C542]/10 border border-[#F4C542]/40 text-[#F4C542] hover:bg-[#F4C542]/25 transition-all text-[11px] font-bold group"
+                                title="Click to view full payment screenshot"
+                              >
+                                <img
+                                  src={tx.proofImage}
+                                  alt="Slip Thumbnail"
+                                  className="w-8 h-8 rounded-lg object-cover border border-[#F4C542]/50 group-hover:scale-105 transition-transform"
+                                />
+                                <div className="text-left font-sans">
+                                  <span className="flex items-center gap-1 text-[11px] font-extrabold text-slate-100">
+                                    <Eye className="w-3 h-3 text-[#F4C542]" /> Inspect Slip
+                                  </span>
+                                  <span className="text-[9px] text-emerald-400 font-mono font-semibold">Attached</span>
+                                </div>
+                              </button>
+                            ) : (
+                              <span className="text-[11px] text-slate-500 italic font-sans">No Slip</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-slate-400 font-sans text-[11px]">{tx.date}</td>
+                          <td className="p-3">
+                            {tx.status === 'completed' ? (
+                              <span className="px-2.5 py-1 rounded-md text-[10px] font-extrabold bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center gap-1 w-fit">
+                                <CheckCircle2 className="w-3 h-3" /> APPROVED
+                              </span>
+                            ) : tx.status === 'failed' ? (
+                              <span className="px-2.5 py-1 rounded-md text-[10px] font-extrabold bg-red-500/20 border border-red-500/40 text-red-400 flex items-center gap-1 w-fit">
+                                <XCircle className="w-3 h-3" /> REJECTED
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-md text-[10px] font-extrabold bg-amber-500/20 border border-amber-500/40 text-amber-300 flex items-center gap-1 w-fit animate-pulse">
+                                <Clock className="w-3 h-3" /> PENDING ADMIN
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3 text-right">
+                            {tx.status === 'pending' ? (
+                              <div className="flex items-center justify-end gap-1.5 font-sans">
+                                <button
+                                  onClick={() => safeApproveTx(tx.id)}
+                                  className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 text-xs font-bold transition-colors flex items-center gap-1"
+                                  title="Approve & Credit Balance"
+                                >
+                                  <Check className="w-3 h-3" /> Approve
+                                </button>
+                                <button
+                                  onClick={() => safeRejectTx(tx.id)}
+                                  className="px-2.5 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/40 text-xs font-bold transition-colors flex items-center gap-1"
+                                  title="Reject Request"
+                                >
+                                  <X className="w-3 h-3" /> Reject
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-slate-500 font-sans text-xs italic">Completed</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 3. KYC REVIEW MODULE */}
       {adminTab === 'kyc' && (

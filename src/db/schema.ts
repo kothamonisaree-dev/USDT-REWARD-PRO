@@ -50,6 +50,8 @@ export const transactions = pgTable('transactions', {
   txHash: text('tx_hash'),
   date: text('date').notNull(),
   note: text('note'),
+  proofImage: text('proof_image'),
+  senderAddress: text('sender_address'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

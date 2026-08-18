@@ -1,4 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import fs from 'fs';
+import path from 'path';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://wprdiyfbsgjbsdsnbbsj.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || 'sb_publishable_wNfdot_4jsCyf7iKEGr_wA_A0yGzk7G';
@@ -91,7 +93,51 @@ const txMap = new Map<string, TransactionRecord>();
 const loansMap = new Map<string, LoanRecord>();
 const settingsMap = new Map<string, string>();
 
-// Seed initial super admin and default users
+const DATA_FILE = path.join(process.cwd(), 'data_store.json');
+
+function saveToDisk() {
+  try {
+    const payload = {
+      users: Array.from(usersMap.values()),
+      kyc: Array.from(kycMap.values()),
+      transactions: Array.from(txMap.values()),
+      loans: Array.from(loansMap.values()),
+      settings: Object.fromEntries(settingsMap.entries()),
+      savedAt: new Date().toISOString()
+    };
+    fs.writeFileSync(DATA_FILE, JSON.stringify(payload, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('[Storage] Disk save note:', err);
+  }
+}
+
+function loadFromDisk() {
+  try {
+    if (fs.existsSync(DATA_FILE)) {
+      const raw = fs.readFileSync(DATA_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed.users)) {
+        parsed.users.forEach((u: UserRecord) => usersMap.set(u.id, u));
+      }
+      if (Array.isArray(parsed.kyc)) {
+        parsed.kyc.forEach((k: KycRecord) => kycMap.set(k.id, k));
+      }
+      if (Array.isArray(parsed.transactions)) {
+        parsed.transactions.forEach((t: TransactionRecord) => txMap.set(t.id, t));
+      }
+      if (Array.isArray(parsed.loans)) {
+        parsed.loans.forEach((l: LoanRecord) => loansMap.set(l.id, l));
+      }
+      if (parsed.settings && typeof parsed.settings === 'object') {
+        Object.entries(parsed.settings).forEach(([k, v]) => settingsMap.set(k, String(v)));
+      }
+    }
+  } catch (err) {
+    console.warn('[Storage] Disk load note:', err);
+  }
+}
+
+// Seed all verified platform users matching the exact database snapshot
 const defaultAdmin: UserRecord = {
   id: 'USR-8829401',
   username: 'emukhan580',
@@ -112,7 +158,76 @@ const defaultAdmin: UserRecord = {
   referralCode: 'USDT-VIP-0001',
   tradesCount: 142,
   is2FAEnabled: true,
-  createdAt: new Date().toISOString()
+  createdAt: '2024-01-10T08:00:00.000Z'
+};
+
+const userTomas: UserRecord = {
+  id: 'USR-5278770',
+  username: 'romeroapolinar',
+  password: 'user1234',
+  fullName: 'Tomás Pedro Romero Apolinar',
+  email: 'romeroapolinar0960@gmail.com',
+  phone: '+52 55 1234 5678',
+  avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=250&q=80',
+  vipLevel: 1,
+  kycStatus: 'unverified',
+  accountStatus: 'active',
+  role: 'user',
+  usdtBalance: 117.22,
+  totalDeposit: 117.22,
+  totalWithdraw: 0.00,
+  totalProfit: 0.00,
+  joinedDate: '2026-08-18',
+  referralCode: 'REF-527877',
+  tradesCount: 12,
+  is2FAEnabled: false,
+  createdAt: '2026-08-18T10:00:00.000Z'
+};
+
+const userAlexkahn: UserRecord = {
+  id: 'USR-6592361',
+  username: 'alexkahn',
+  password: 'user1234',
+  fullName: 'alexkahn',
+  email: 'alex580@gmail.com',
+  phone: '+1 (555) 659-2361',
+  avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=250&q=80',
+  vipLevel: 1,
+  kycStatus: 'unverified',
+  accountStatus: 'active',
+  role: 'user',
+  usdtBalance: 102.50,
+  totalDeposit: 102.50,
+  totalWithdraw: 0.00,
+  totalProfit: 0.00,
+  joinedDate: '2026-08-18',
+  referralCode: 'REF-659236',
+  tradesCount: 8,
+  is2FAEnabled: false,
+  createdAt: '2026-08-18T10:15:00.000Z'
+};
+
+const userSophia: UserRecord = {
+  id: 'USR-7002417',
+  username: 'sophia',
+  password: 'user1234',
+  fullName: 'Sophia',
+  email: 'sophia007@gmail.com',
+  phone: '+44 7911 700241',
+  avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=250&q=80',
+  vipLevel: 1,
+  kycStatus: 'unverified',
+  accountStatus: 'active',
+  role: 'user',
+  usdtBalance: 18199.29,
+  totalDeposit: 20000.00,
+  totalWithdraw: 1800.71,
+  totalProfit: 0.00,
+  joinedDate: '2026-08-18',
+  referralCode: 'REF-700241',
+  tradesCount: 45,
+  is2FAEnabled: false,
+  createdAt: '2026-08-18T10:30:00.000Z'
 };
 
 const defaultUser: UserRecord = {
@@ -125,7 +240,7 @@ const defaultUser: UserRecord = {
   avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
   vipLevel: 1,
   kycStatus: 'unverified',
-  accountStatus: 'active',
+  accountStatus: 'suspended',
   role: 'user',
   usdtBalance: 1000.00,
   totalDeposit: 1000.00,
@@ -135,11 +250,24 @@ const defaultUser: UserRecord = {
   referralCode: 'USDT-VIP-8829',
   tradesCount: 0,
   is2FAEnabled: false,
-  createdAt: new Date().toISOString()
+  createdAt: '2025-11-12T09:00:00.000Z'
 };
 
-usersMap.set(defaultAdmin.id, defaultAdmin);
-usersMap.set(defaultUser.id, defaultUser);
+// First load any persisted data
+loadFromDisk();
+
+// Ensure all snapshot accounts exist in map
+const snapshotUsers = [userTomas, userAlexkahn, userSophia, defaultAdmin, defaultUser];
+snapshotUsers.forEach(u => {
+  if (!usersMap.has(u.id)) {
+    usersMap.set(u.id, u);
+  } else {
+    // Preserve existing while ensuring accurate balance
+    const cur = usersMap.get(u.id)!;
+    usersMap.set(u.id, { ...u, ...cur, usdtBalance: cur.usdtBalance ?? u.usdtBalance });
+  }
+});
+saveToDisk();
 
 export const StorageEngine = {
   // --- USERS ---
@@ -227,6 +355,7 @@ export const StorageEngine = {
 
   async saveUser(user: UserRecord): Promise<UserRecord> {
     usersMap.set(user.id, user);
+    saveToDisk();
     try {
       // Try pushing to Supabase
       await supabase.from('users').upsert({
@@ -251,7 +380,7 @@ export const StorageEngine = {
         is_2fa_enabled: user.is2FAEnabled
       });
     } catch (e) {
-      console.warn('[Supabase Sync] Note: Stored locally in memory cache');
+      console.warn('[Supabase Sync] Note: Stored locally in disk/memory cache');
     }
     return user;
   },
@@ -264,6 +393,7 @@ export const StorageEngine = {
       ...updates
     };
     usersMap.set(id, updated);
+    saveToDisk();
     try {
       const sbUpdates: any = {};
       if (updates.fullName !== undefined) sbUpdates.full_name = updates.fullName;
@@ -292,6 +422,7 @@ export const StorageEngine = {
 
   // --- TRANSACTIONS ---
   async getAllTransactions(): Promise<TransactionRecord[]> {
+    loadFromDisk();
     try {
       const { data, error } = await supabase.from('transactions').select('*');
       if (!error && data && data.length > 0) {
@@ -321,6 +452,7 @@ export const StorageEngine = {
 
   async saveTransaction(tx: TransactionRecord): Promise<TransactionRecord> {
     txMap.set(tx.id, tx);
+    saveToDisk();
     try {
       await supabase.from('transactions').upsert({
         id: tx.id,
@@ -346,6 +478,7 @@ export const StorageEngine = {
     if (!existing) return null;
     const updated = { ...existing, ...updates };
     txMap.set(id, updated);
+    saveToDisk();
     try {
       const sbUpdates: any = {};
       if (updates.status) sbUpdates.status = updates.status;
@@ -359,6 +492,7 @@ export const StorageEngine = {
 
   // --- KYC REQUESTS ---
   async getAllKyc(): Promise<KycRecord[]> {
+    loadFromDisk();
     try {
       const { data, error } = await supabase.from('kyc_requests').select('*');
       if (!error && data && data.length > 0) {
@@ -390,6 +524,7 @@ export const StorageEngine = {
 
   async saveKyc(kyc: KycRecord): Promise<KycRecord> {
     kycMap.set(kyc.id, kyc);
+    saveToDisk();
     try {
       await supabase.from('kyc_requests').upsert({
         id: kyc.id,
@@ -416,6 +551,7 @@ export const StorageEngine = {
     if (!existing) return null;
     const updated = { ...existing, ...updates };
     kycMap.set(id, updated);
+    saveToDisk();
     try {
       const sbUpdates: any = {};
       if (updates.status) sbUpdates.status = updates.status;
@@ -429,6 +565,7 @@ export const StorageEngine = {
 
   // --- LOANS ---
   async getAllLoans(): Promise<LoanRecord[]> {
+    loadFromDisk();
     try {
       const { data, error } = await supabase.from('loans').select('*');
       if (!error && data && data.length > 0) {
@@ -462,6 +599,7 @@ export const StorageEngine = {
 
   async saveLoan(loan: LoanRecord): Promise<LoanRecord> {
     loansMap.set(loan.id, loan);
+    saveToDisk();
     try {
       await supabase.from('loans').upsert({
         id: loan.id,
@@ -488,6 +626,7 @@ export const StorageEngine = {
 
   // --- SETTINGS ---
   async getSettings(): Promise<Record<string, any>> {
+    loadFromDisk();
     const res: Record<string, any> = {};
     settingsMap.forEach((v, k) => {
       try {
@@ -502,5 +641,6 @@ export const StorageEngine = {
   async saveSetting(key: string, value: any): Promise<void> {
     const strVal = typeof value === 'object' ? JSON.stringify(value) : String(value);
     settingsMap.set(key, strVal);
+    saveToDisk();
   }
 };

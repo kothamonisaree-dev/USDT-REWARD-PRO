@@ -638,20 +638,33 @@ export default function App() {
     }
   };
 
-  // Sync state with Cloud SQL on app mount and periodically
+  // Sync state with Cloud SQL / server database on app mount and periodically for multi-device live sync
   useEffect(() => {
     let isMounted = true;
 
-    // Initial cloud SQL sync
+    // Initial sync
     syncWithCloudSql();
 
+    // Fast multi-device polling every 3 seconds
     const interval = setInterval(() => {
       if (isMounted) syncWithCloudSql();
-    }, 6000); // sync every 6 seconds for multi-device real-time updates
+    }, 3000);
+
+    // Instant sync when tab gains focus or user switches back to the app
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible' && isMounted) {
+        syncWithCloudSql();
+      }
+    };
+
+    window.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('focus', handleVisibilityOrFocus);
 
     return () => {
       isMounted = false;
       clearInterval(interval);
+      window.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
     };
   }, []);
 
@@ -852,10 +865,18 @@ export default function App() {
       note: note || (proofImage ? 'Payment Proof Attached (Pending Admin)' : 'Deposit Request (Pending Admin Approval)'),
       proofImage: proofImage || undefined
     };
-    setTransactions(prev => [newTx, ...prev]);
 
-    // Save permanently to Cloud SQL / Storage
-    await api.createTransaction(newTx);
+    setTransactions(prev => [newTx, ...prev.filter(t => t.id !== newTx.id)]);
+
+    // Save permanently to Cloud SQL / Server
+    try {
+      const saved = await api.createTransaction(newTx);
+      if (saved) {
+        setTransactions(prev => [saved, ...prev.filter(t => t.id !== newTx.id && t.id !== saved.id)]);
+      }
+    } catch (err) {
+      console.warn('[Deposit] Error creating transaction:', err);
+    }
 
     handleAddNotification(
       '⏳ Deposit Submitted (Pending Admin)',
