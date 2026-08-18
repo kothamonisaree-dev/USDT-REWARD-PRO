@@ -143,7 +143,6 @@ export default function App() {
         if (typeof document !== 'undefined') {
           document.cookie = 'usdt_session=; Path=/; Max-Age=0; SameSite=Lax';
         }
-        api.saveSessionToServer({ isLoggedIn: false });
       } else {
         const json = JSON.stringify(sessionData);
         localStorage.setItem(SESSION_STORAGE_KEY, json);
@@ -151,12 +150,6 @@ export default function App() {
         if (typeof document !== 'undefined') {
           document.cookie = `usdt_session=${encodeURIComponent(json)}; Path=/; Max-Age=2592000; SameSite=Lax`;
         }
-        api.saveSessionToServer({
-          isLoggedIn: true,
-          user: u,
-          wallet: w,
-          role: r
-        });
       }
     } catch (err) {
       console.warn('[Session] Storage error:', err);
@@ -641,30 +634,17 @@ export default function App() {
     }
   };
 
-  // Sync state with Cloud SQL on app mount and periodically + restore server session
+  // Sync state with Cloud SQL on app mount and periodically
   useEffect(() => {
     let isMounted = true;
 
-    const initializeAuthAndData = async () => {
-      // 1. Check server-side session fallback on startup
-      try {
-        const serverSession = await api.fetchCurrentSession();
-        if (isMounted && serverSession && serverSession.isLoggedIn && serverSession.user) {
-          setIsLoggedIn(true);
-          setUser(serverSession.user);
-          setWallet(serverSession.wallet);
-          setUserRole(serverSession.role || 'user');
-        }
-      } catch (err) {
-        console.warn('[Session] Server session check error:', err);
-      }
+    // Initial cloud SQL sync
+    syncWithCloudSql();
 
-      // 2. Initial cloud SQL sync
-      await syncWithCloudSql();
-    };
+    const interval = setInterval(() => {
+      if (isMounted) syncWithCloudSql();
+    }, 6000); // sync every 6 seconds for multi-device real-time updates
 
-    initializeAuthAndData();
-    const interval = setInterval(syncWithCloudSql, 6000); // sync every 6 seconds for multi-device real-time updates
     return () => {
       isMounted = false;
       clearInterval(interval);
