@@ -242,6 +242,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Selected KYC Modal
   const [selectedKyc, setSelectedKyc] = useState<KycRequestData | null>(null);
 
+  // Selected Transaction Proof Slip Modal
+  const [previewTxProofModal, setPreviewTxProofModal] = useState<TransactionItem | null>(null);
+
   // User Management States
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userStatusFilter, setUserStatusFilter] = useState<string>('all');
@@ -934,7 +937,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[800px]">
+          <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
               <tr className="border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase bg-[#080D18]">
                 <th className="p-3">Tx ID</th>
@@ -942,6 +945,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <th className="p-3">Type</th>
                 <th className="p-3">Amount</th>
                 <th className="p-3">Asset / Network</th>
+                <th className="p-3">Payment Proof / Slip</th>
                 <th className="p-3">Requested At</th>
                 <th className="p-3">Status</th>
                 <th className="p-3 text-right">Admin Action</th>
@@ -950,7 +954,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <tbody className="divide-y divide-slate-800/60 font-mono text-xs">
               {transactions.filter(t => t.type === 'deposit' || t.type === 'withdraw').length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-6 text-center text-slate-500 italic">
+                  <td colSpan={9} className="p-6 text-center text-slate-500 italic">
                     No deposit or withdrawal requests found.
                   </td>
                 </tr>
@@ -959,7 +963,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   const userForTx = usersList.find(u => u.id === tx.userId);
                   return (
                     <tr key={tx.id} className="hover:bg-slate-800/30 transition-colors">
-                      <td className="p-3 font-bold text-slate-200">{tx.id}</td>
+                      <td className="p-3 font-bold text-slate-200">
+                        <div>{tx.id}</div>
+                        {tx.txHash && (
+                          <div className="text-[10px] text-slate-400 font-mono truncate max-w-[120px]" title={tx.txHash}>
+                            {tx.txHash}
+                          </div>
+                        )}
+                      </td>
                       <td className="p-3">
                         <div className="font-sans">
                           <div className="font-bold text-slate-100 text-xs flex items-center gap-1">
@@ -994,6 +1005,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <td className="p-3 text-slate-300 font-sans text-xs">
                         {tx.asset}
                         {tx.note && <div className="text-[10px] text-slate-400 font-mono">{tx.note}</div>}
+                      </td>
+                      <td className="p-3">
+                        {tx.proofImage ? (
+                          <button
+                            onClick={() => setPreviewTxProofModal(tx)}
+                            className="flex items-center gap-2 p-1.5 rounded-xl bg-[#F4C542]/10 border border-[#F4C542]/40 text-[#F4C542] hover:bg-[#F4C542]/25 transition-all text-[11px] font-bold group"
+                            title="Click to view full payment screenshot"
+                          >
+                            <img
+                              src={tx.proofImage}
+                              alt="Slip Thumbnail"
+                              className="w-8 h-8 rounded-lg object-cover border border-[#F4C542]/50 group-hover:scale-105 transition-transform"
+                            />
+                            <div className="text-left font-sans">
+                              <span className="flex items-center gap-1 text-[11px] font-extrabold text-slate-100">
+                                <Eye className="w-3 h-3 text-[#F4C542]" /> Inspect Slip
+                              </span>
+                              <span className="text-[9px] text-emerald-400 font-mono font-semibold">Attached</span>
+                            </div>
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-slate-500 italic font-sans">No Slip</span>
+                        )}
                       </td>
                       <td className="p-3 text-slate-400 font-sans text-[11px]">{tx.date}</td>
                       <td className="p-3">
@@ -2572,6 +2606,155 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ADMIN INSPECT PAYMENT PROOF MODAL */}
+      {previewTxProofModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fadeIn">
+          <div className="glass-gold-card w-full max-w-3xl rounded-2xl border-2 border-[#F4C542]/60 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-[#080D18]/90">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#F4C542]/20 flex items-center justify-center text-[#F4C542] border border-[#F4C542]/40">
+                  <Camera className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
+                    <span>Payment Proof Slip Verification</span>
+                    <span className="text-xs px-2 py-0.5 rounded bg-[#F4C542]/20 text-[#F4C542] font-mono border border-[#F4C542]/40">
+                      {previewTxProofModal.id}
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Verify the sender screenshot and crypto receipt before approving balance
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPreviewTxProofModal(null)}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body: Two Column (Screenshot on Left, Details on Right) */}
+            <div className="p-5 overflow-y-auto grid grid-cols-1 md:grid-cols-12 gap-5">
+              {/* Left Column: Big Screenshot */}
+              <div className="md:col-span-7 flex flex-col items-center justify-center bg-black/90 rounded-2xl p-3 border border-slate-800 min-h-[280px]">
+                {previewTxProofModal.proofImage ? (
+                  <div className="relative group w-full flex items-center justify-center">
+                    <img
+                      src={previewTxProofModal.proofImage}
+                      alt="Deposit Proof Full"
+                      className="max-h-[55vh] w-auto max-w-full object-contain rounded-xl shadow-2xl"
+                    />
+                  </div>
+                ) : (
+                  <div className="text-center p-8 text-slate-500">
+                    <Camera className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                    <p className="text-xs">No screenshot image attached to this transaction.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Transaction Details & Meta */}
+              <div className="md:col-span-5 space-y-3.5 flex flex-col justify-between">
+                <div className="space-y-3">
+                  <div className="p-3.5 rounded-xl bg-[#080D18] border border-slate-800 space-y-2">
+                    <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Transaction Summary</div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-400">Type:</span>
+                      <span className="text-xs font-bold text-emerald-400 uppercase">{previewTxProofModal.type}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-400">Amount:</span>
+                      <span className="text-base font-extrabold text-[#F4C542] font-mono">
+                        ${previewTxProofModal.amount.toFixed(2)} USDT
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-400">Asset / Network:</span>
+                      <span className="text-xs font-semibold text-slate-200">{previewTxProofModal.asset}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-400">Date:</span>
+                      <span className="text-xs font-mono text-slate-300">{previewTxProofModal.date}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-400">Current Status:</span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        previewTxProofModal.status === 'completed' 
+                          ? 'bg-emerald-500/20 text-emerald-400' 
+                          : previewTxProofModal.status === 'pending'
+                          ? 'bg-amber-500/20 text-amber-300'
+                          : 'bg-red-500/20 text-red-400'
+                      }`}>
+                        {previewTxProofModal.status.toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Tx Hash / ID */}
+                  {previewTxProofModal.txHash && (
+                    <div className="p-3 rounded-xl bg-[#080D18] border border-slate-800">
+                      <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Transaction Hash / TxID</div>
+                      <div className="text-xs font-mono text-slate-200 break-all select-all bg-black/50 p-2 rounded-lg border border-slate-800">
+                        {previewTxProofModal.txHash}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Note / Sender Detail */}
+                  {previewTxProofModal.note && (
+                    <div className="p-3 rounded-xl bg-[#080D18] border border-slate-800">
+                      <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Sender Note</div>
+                      <div className="text-xs text-slate-300 italic">
+                        "{previewTxProofModal.note}"
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Direct Action Buttons */}
+                <div className="pt-2 space-y-2 border-t border-slate-800">
+                  {previewTxProofModal.status === 'pending' ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => {
+                          safeApproveTx(previewTxProofModal.id);
+                          setPreviewTxProofModal(null);
+                        }}
+                        className="py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-black font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20 transition-transform active:scale-95"
+                      >
+                        <CheckCircle2 className="w-4 h-4" /> Approve & Credit
+                      </button>
+                      <button
+                        onClick={() => {
+                          safeRejectTx(previewTxProofModal.id);
+                          setPreviewTxProofModal(null);
+                        }}
+                        className="py-3 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/40 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <XCircle className="w-4 h-4" /> Reject Request
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-center text-xs text-slate-400">
+                      This transaction has already been marked as <strong>{previewTxProofModal.status}</strong>.
+                    </div>
+                  )}
+                  <button
+                    onClick={() => setPreviewTxProofModal(null)}
+                    className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-colors"
+                  >
+                    Close Window
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

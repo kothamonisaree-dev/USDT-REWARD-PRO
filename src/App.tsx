@@ -139,7 +139,11 @@ export default function App() {
     try {
       if (!loggedIn) {
         localStorage.removeItem(SESSION_STORAGE_KEY);
+        localStorage.removeItem('usdt_reward_pro_active_session_v3');
+        localStorage.removeItem('usdt_reward_pro_active_session_v2');
+        localStorage.removeItem('usdt_reward_pro_session_v1');
         sessionStorage.removeItem(SESSION_STORAGE_KEY);
+        sessionStorage.removeItem('usdt_reward_pro_active_session_v3');
         if (typeof document !== 'undefined') {
           document.cookie = 'usdt_session=; Path=/; Max-Age=0; SameSite=Lax';
         }
@@ -828,7 +832,14 @@ export default function App() {
   };
 
   // Handler: Deposit Request (Pending Admin Approval)
-  const handleDepositSubmit = async (amount: number, asset: string) => {
+  const handleDepositSubmit = async (
+    amount: number, 
+    asset: string, 
+    proofImage?: string, 
+    txHash?: string, 
+    note?: string
+  ) => {
+    const generatedHash = txHash || `0x${Math.random().toString(16).substring(2, 14)}...`;
     const newTx: TransactionItem = {
       id: `TX-${Math.floor(10000 + Math.random() * 90000)}`,
       userId: user.id,
@@ -836,18 +847,19 @@ export default function App() {
       amount,
       asset,
       status: 'pending',
-      txHash: `0x${Math.random().toString(16).substring(2, 14)}...`,
+      txHash: generatedHash,
       date: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      note: 'Deposit Request (Pending Admin Approval)'
+      note: note || (proofImage ? 'Payment Proof Attached (Pending Admin)' : 'Deposit Request (Pending Admin Approval)'),
+      proofImage: proofImage || undefined
     };
     setTransactions(prev => [newTx, ...prev]);
 
-    // Save permanently to Cloud SQL
+    // Save permanently to Cloud SQL / Storage
     await api.createTransaction(newTx);
 
     handleAddNotification(
       '⏳ Deposit Submitted (Pending Admin)',
-      `Your deposit request of $${amount.toFixed(2)} ${asset} has been submitted. It will be credited once approved by Admin.`,
+      `Your deposit request of $${amount.toFixed(2)} ${asset} has been submitted with payment receipt. It will be credited once approved by Admin.`,
       'deposit'
     );
   };

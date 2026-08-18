@@ -142,6 +142,8 @@ export interface TransactionItem {
   txHash?: string;
   date: string;
   note?: string;
+  proofImage?: string;
+  senderAddress?: string;
 }
 
 export interface NotificationItem {

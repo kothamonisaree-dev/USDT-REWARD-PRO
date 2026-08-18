@@ -207,7 +207,7 @@ async function startServer() {
 
   app.post('/api/transactions', async (req, res) => {
     try {
-      const { id, userId, type, amount, asset = 'USDT', status = 'completed', txHash, date, note } = req.body;
+      const { id, userId, type, amount, asset = 'USDT', status = 'completed', txHash, date, note, proofImage, senderAddress } = req.body;
       const txId = id || `TX-${Math.floor(10000 + Math.random() * 90000)}`;
       const txDate = date || new Date().toISOString().replace('T', ' ').substring(0, 19);
 
@@ -221,6 +221,8 @@ async function startServer() {
         txHash: txHash || null,
         date: txDate,
         note: note || null,
+        proofImage: proofImage || null,
+        senderAddress: senderAddress || null,
         createdAt: new Date().toISOString()
       });
 

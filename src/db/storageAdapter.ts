@@ -60,6 +60,8 @@ export interface TransactionRecord {
   txHash?: string | null;
   date: string;
   note?: string | null;
+  proofImage?: string | null;
+  senderAddress?: string | null;
   createdAt: string;
 }
 
@@ -304,6 +306,8 @@ export const StorageEngine = {
             txHash: t.tx_hash || t.txHash,
             date: t.date,
             note: t.note,
+            proofImage: t.proof_image || t.proofImage || null,
+            senderAddress: t.sender_address || t.senderAddress || null,
             createdAt: t.created_at || t.createdAt || new Date().toISOString()
           };
           txMap.set(rec.id, rec);
@@ -327,7 +331,9 @@ export const StorageEngine = {
         status: tx.status,
         tx_hash: tx.txHash,
         date: tx.date,
-        note: tx.note
+        note: tx.note,
+        proof_image: tx.proofImage,
+        sender_address: tx.senderAddress
       });
     } catch {
       // ignore

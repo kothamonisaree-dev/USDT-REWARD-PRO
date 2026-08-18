@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { WalletState, TransactionItem, WalletConfig, DepositCurrencyWallet } from '../types';
 import { defaultDepositCurrencies } from '../data/mockData';
-import { ArrowDownLeft, ArrowUpRight, Copy, Check, QrCode, Search, Filter, ShieldCheck, Lock, ExternalLink, RefreshCw, Coins } from 'lucide-react';
+import { 
+  ArrowDownLeft, ArrowUpRight, Copy, Check, QrCode, Search, Filter, ShieldCheck, 
+  Lock, ExternalLink, RefreshCw, Coins, Camera, UploadCloud, Image as ImageIcon, 
+  Trash2, Eye, X, CheckCircle2, AlertCircle, FileText
+} from 'lucide-react';
 
 interface WalletPageProps {
   wallet: WalletState;
   transactions: TransactionItem[];
-  onDepositSubmit: (amount: number, asset: string) => void;
+  onDepositSubmit: (amount: number, asset: string, proofImage?: string, txHash?: string, note?: string) => void;
   onWithdrawSubmit: (amount: number, asset: string, address: string) => void;
   walletConfig?: WalletConfig;
 }
@@ -43,8 +47,15 @@ export const WalletPage: React.FC<WalletPageProps> = ({
 
   // Deposit form state
   const [depositAmount, setDepositAmount] = useState<string>('100');
+  const [depositProofImage, setDepositProofImage] = useState<string | null>(null);
+  const [depositTxHash, setDepositTxHash] = useState<string>('');
+  const [depositNote, setDepositNote] = useState<string>('');
   const [copiedAddr, setCopiedAddr] = useState(false);
   const [depositSuccess, setDepositSuccess] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [previewProofModal, setPreviewProofModal] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Withdraw form state
   const [withdrawAsset, setWithdrawAsset] = useState<string>('USDT (TRC20)');
@@ -64,15 +75,75 @@ export const WalletPage: React.FC<WalletPageProps> = ({
     setTimeout(() => setCopiedAddr(false), 2000);
   };
 
+  const handleFileChange = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload a valid image screenshot (PNG, JPG, JPEG, WEBP).');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      alert('Image size exceeds 8MB. Please upload a smaller image.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result) {
+        setDepositProofImage(e.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileChange(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handlePasteTxHash = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        setDepositTxHash(text.trim());
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   const handleDepositConfirm = () => {
     const amt = parseFloat(depositAmount);
     if (isNaN(amt) || amt < minDepositVal) {
       alert(`Minimum deposit required for ${selectedCurrency.symbol} (${selectedCurrency.network}) is $${minDepositVal.toFixed(2)} USD.`);
       return;
     }
-    onDepositSubmit(amt, `${selectedCurrency.symbol} (${selectedCurrency.network})`);
+
+    onDepositSubmit(
+      amt, 
+      `${selectedCurrency.symbol} (${selectedCurrency.network})`,
+      depositProofImage || undefined,
+      depositTxHash.trim() || undefined,
+      depositNote.trim() || undefined
+    );
+
     setDepositSuccess(true);
-    setTimeout(() => setDepositSuccess(false), 3000);
+    // Reset proof states after submitting
+    setDepositProofImage(null);
+    setDepositTxHash('');
+    setDepositNote('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
+    setTimeout(() => setDepositSuccess(false), 5000);
   };
 
   const handleWithdrawConfirm = () => {
@@ -237,16 +308,159 @@ export const WalletPage: React.FC<WalletPageProps> = ({
               </div>
             </div>
 
+            {/* PAYMENT PROOF (SCREENSHOT UPLOAD & TX HASH) SECTION - EXACTLY ABOVE CONFIRM BUTTON */}
+            <div className="p-4 rounded-2xl bg-[#080D18]/90 border-2 border-[#F4C542]/40 space-y-3.5 shadow-inner">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-extrabold text-slate-100 flex items-center gap-1.5">
+                  <Camera className="w-4 h-4 text-[#F4C542]" /> 
+                  <span>Upload Payment Proof / Screenshot</span>
+                  <span className="text-[#F4C542] text-[10px] px-1.5 py-0.5 rounded bg-[#F4C542]/15 border border-[#F4C542]/30 font-mono">Proof Receipt</span>
+                </label>
+                <span className="text-[10px] text-slate-400">JPG, PNG, WEBP (Max 8MB)</span>
+              </div>
+
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleFileChange(e.target.files[0]);
+                  }
+                }}
+                className="hidden"
+                id="deposit-proof-upload"
+              />
+
+              {!depositProofImage ? (
+                /* Drag and drop / Click upload zone */
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
+                    isDragging
+                      ? 'border-[#F4C542] bg-[#F4C542]/10 scale-[0.99]'
+                      : 'border-slate-700 hover:border-[#F4C542]/60 hover:bg-slate-900/60 bg-[#0A101D]'
+                  }`}
+                >
+                  <div className="w-11 h-11 rounded-full bg-[#F4C542]/15 border border-[#F4C542]/40 flex items-center justify-center text-[#F4C542] shadow-md shadow-[#F4C542]/10">
+                    <UploadCloud className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-200">
+                      Click to upload or drag & drop payment screenshot
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Attach transfer receipt screenshot from Binance, Trust Wallet, OKX, etc.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="mt-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-[#F4C542] border border-[#F4C542]/30 flex items-center gap-1.5"
+                  >
+                    <Camera className="w-3.5 h-3.5" /> Browse Screenshot / Slip
+                  </button>
+                </div>
+              ) : (
+                /* Uploaded Image Preview Box */
+                <div className="p-3 rounded-xl bg-slate-900/90 border border-emerald-500/40 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Payment Screenshot Attached</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewProofModal(depositProofImage)}
+                        className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold flex items-center gap-1 transition-colors border border-slate-700"
+                        title="View Full Size Screenshot"
+                      >
+                        <Eye className="w-3 h-3 text-[#F4C542]" /> Zoom View
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDepositProofImage(null);
+                          if (fileInputRef.current) fileInputRef.current.value = '';
+                        }}
+                        className="px-2 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 text-[10px] font-bold flex items-center gap-1 transition-colors border border-red-500/30"
+                        title="Remove Attachment"
+                      >
+                        <Trash2 className="w-3 h-3" /> Remove
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="relative rounded-lg overflow-hidden border border-slate-700 bg-black/60 max-h-40 flex items-center justify-center">
+                    <img
+                      src={depositProofImage}
+                      alt="Deposit Proof"
+                      className="max-h-36 object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => setPreviewProofModal(depositProofImage)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Transaction ID / Hash (TxID) field */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[11px] font-semibold text-slate-300">
+                    Transaction ID / Tx Hash (TxID) <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handlePasteTxHash}
+                    className="text-[10px] text-[#F4C542] hover:underline font-bold flex items-center gap-0.5"
+                  >
+                    <Copy className="w-2.5 h-2.5" /> Paste from clipboard
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={depositTxHash}
+                  onChange={(e) => setDepositTxHash(e.target.value)}
+                  placeholder="e.g., 0x9b3a... or 64-character TRC20/BEP20 Hash"
+                  className="w-full bg-[#050912] border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 font-mono focus:border-[#F4C542] focus:outline-none"
+                />
+              </div>
+
+              {/* Sender Wallet / Note (Optional) */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                  Sender Wallet Address or Note <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={depositNote}
+                  onChange={(e) => setDepositNote(e.target.value)}
+                  placeholder="e.g., Sent from Binance TRC20 / Trust Wallet"
+                  className="w-full bg-[#050912] border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 font-mono focus:border-[#F4C542] focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-[#F4C542]/10 border border-[#F4C542]/20 text-[11px] text-[#F4C542]">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>
+                  Uploading your payment screenshot allows the verification system & Admin to approve and credit your vault balance within 5–15 minutes.
+                </span>
+              </div>
+            </div>
+
             {depositSuccess && (
               <div className="p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-2">
                 <span>⏳</span>
-                <span>Deposit Request for {depositAmount} USD ({selectedCurrency.symbol}) submitted! Pending Admin Approval. Balance will credit upon confirmation.</span>
+                <span>Deposit Request for {depositAmount} USD ({selectedCurrency.symbol}) submitted with proof! Pending Admin Approval.</span>
               </div>
             )}
 
             <button
               onClick={handleDepositConfirm}
-              className="w-full py-3.5 btn-gold-gradient text-sm font-bold text-black shadow-lg shadow-[#F4C542]/20"
+              className="w-full py-3.5 btn-gold-gradient text-sm font-bold text-black shadow-lg shadow-[#F4C542]/20 hover:scale-[1.01] transition-transform"
             >
               Confirm {selectedCurrency.symbol} Deposit (${minDepositVal.toFixed(0)} Minimum)
             </button>
@@ -423,13 +637,14 @@ export const WalletPage: React.FC<WalletPageProps> = ({
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[600px]">
+            <table className="w-full text-left border-collapse min-w-[650px]">
               <thead>
                 <tr className="border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider bg-[#080D18]/80">
                   <th className="p-3">Tx ID</th>
                   <th className="p-3">Type</th>
                   <th className="p-3">Amount</th>
                   <th className="p-3">Asset</th>
+                  <th className="p-3">Proof Slip</th>
                   <th className="p-3">Status</th>
                   <th className="p-3 text-right">Date & Time</th>
                 </tr>
@@ -437,14 +652,17 @@ export const WalletPage: React.FC<WalletPageProps> = ({
               <tbody className="divide-y divide-slate-800/60 font-mono text-xs">
                 {filteredTransactions.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-6 text-center text-slate-400">
+                    <td colSpan={7} className="p-6 text-center text-slate-400">
                       No matching transaction records found.
                     </td>
                   </tr>
                 ) : (
                   filteredTransactions.map(tx => (
                     <tr key={tx.id} className="hover:bg-slate-800/20">
-                      <td className="p-3 font-bold text-slate-200">{tx.id}</td>
+                      <td className="p-3 font-bold text-slate-200">
+                        <div>{tx.id}</div>
+                        {tx.txHash && <div className="text-[10px] text-slate-400 truncate max-w-[120px] font-mono">{tx.txHash}</div>}
+                      </td>
                       <td className="p-3 capitalize">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                           tx.type === 'deposit' || tx.type === 'profit' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-blue-500/15 text-blue-400'
@@ -457,7 +675,27 @@ export const WalletPage: React.FC<WalletPageProps> = ({
                       </td>
                       <td className="p-3 text-slate-300">{tx.asset}</td>
                       <td className="p-3">
-                        <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400 font-bold">
+                        {tx.proofImage ? (
+                          <button
+                            onClick={() => setPreviewProofModal(tx.proofImage!)}
+                            className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#F4C542]/10 border border-[#F4C542]/30 text-[#F4C542] text-[10px] font-bold hover:bg-[#F4C542]/20 transition-colors"
+                            title="View Payment Screenshot"
+                          >
+                            <img src={tx.proofImage} alt="Proof" className="w-4 h-4 rounded object-cover" />
+                            <span>View Slip</span>
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-slate-400 italic">-</span>
+                        )}
+                      </td>
+                      <td className="p-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          tx.status === 'completed' 
+                            ? 'bg-emerald-500/20 text-emerald-400' 
+                            : tx.status === 'pending'
+                            ? 'bg-amber-500/20 text-amber-300'
+                            : 'bg-red-500/20 text-red-400'
+                        }`}>
                           {tx.status}
                         </span>
                       </td>
@@ -467,6 +705,40 @@ export const WalletPage: React.FC<WalletPageProps> = ({
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* FULLSCREEN IMAGE ZOOM MODAL */}
+      {previewProofModal && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="relative max-w-2xl w-full bg-[#080D18] border border-[#F4C542]/50 rounded-2xl p-4 shadow-2xl space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+              <div className="flex items-center gap-2 text-slate-100 font-bold text-sm">
+                <Camera className="w-4 h-4 text-[#F4C542]" /> Payment Proof Screenshot Preview
+              </div>
+              <button
+                onClick={() => setPreviewProofModal(null)}
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="max-h-[75vh] overflow-auto flex items-center justify-center bg-black/80 rounded-xl p-2">
+              <img
+                src={previewProofModal}
+                alt="Payment Proof Full"
+                className="max-h-[70vh] w-auto object-contain rounded-lg shadow-lg"
+              />
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={() => setPreviewProofModal(null)}
+                className="px-4 py-2 btn-gold-gradient text-xs font-bold text-black"
+              >
+                Close Preview
+              </button>
+            </div>
           </div>
         </div>
       )}
