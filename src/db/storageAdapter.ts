@@ -272,33 +272,37 @@ saveToDisk();
 export const StorageEngine = {
   // --- USERS ---
   async getAllUsers(): Promise<UserRecord[]> {
+    loadFromDisk();
     try {
       const { data, error } = await supabase.from('users').select('*');
       if (!error && data && data.length > 0) {
         data.forEach((u: any) => {
-          const userObj: UserRecord = {
-            id: u.id,
-            username: u.username,
-            password: u.password,
-            fullName: u.full_name || u.fullName || u.username,
-            email: u.email,
-            phone: u.phone,
-            avatar: u.avatar,
-            vipLevel: Number(u.vip_level || u.vipLevel || 1),
-            kycStatus: u.kyc_status || u.kycStatus || 'unverified',
-            accountStatus: u.account_status || u.accountStatus || 'active',
-            role: u.role || 'user',
-            usdtBalance: Number(u.usdt_balance ?? u.usdtBalance ?? 0),
-            totalDeposit: Number(u.total_deposit ?? u.totalDeposit ?? 0),
-            totalWithdraw: Number(u.total_withdraw ?? u.totalWithdraw ?? 0),
-            totalProfit: Number(u.total_profit ?? u.totalProfit ?? 0),
-            joinedDate: u.joined_date || u.joinedDate || new Date().toISOString().split('T')[0],
-            referralCode: u.referral_code || u.referralCode || `REF-${Math.floor(100000 + Math.random() * 900000)}`,
-            tradesCount: Number(u.trades_count || u.tradesCount || 0),
-            is2FAEnabled: Boolean(u.is_2fa_enabled ?? u.is2FAEnabled ?? false),
-            createdAt: u.created_at || u.createdAt || new Date().toISOString()
-          };
-          usersMap.set(userObj.id, userObj);
+          // Only add from Supabase if user does not exist in local store
+          if (!usersMap.has(u.id)) {
+            const userObj: UserRecord = {
+              id: u.id,
+              username: u.username,
+              password: u.password,
+              fullName: u.full_name || u.fullName || u.username,
+              email: u.email,
+              phone: u.phone,
+              avatar: u.avatar,
+              vipLevel: Number(u.vip_level || u.vipLevel || 1),
+              kycStatus: u.kyc_status || u.kycStatus || 'unverified',
+              accountStatus: u.account_status || u.accountStatus || 'active',
+              role: u.role || 'user',
+              usdtBalance: Number(u.usdt_balance ?? u.usdtBalance ?? 0),
+              totalDeposit: Number(u.total_deposit ?? u.totalDeposit ?? 0),
+              totalWithdraw: Number(u.total_withdraw ?? u.totalWithdraw ?? 0),
+              totalProfit: Number(u.total_profit ?? u.totalProfit ?? 0),
+              joinedDate: u.joined_date || u.joinedDate || new Date().toISOString().split('T')[0],
+              referralCode: u.referral_code || u.referralCode || `REF-${Math.floor(100000 + Math.random() * 900000)}`,
+              tradesCount: Number(u.trades_count || u.tradesCount || 0),
+              is2FAEnabled: Boolean(u.is_2fa_enabled ?? u.is2FAEnabled ?? false),
+              createdAt: u.created_at || u.createdAt || new Date().toISOString()
+            };
+            usersMap.set(userObj.id, userObj);
+          }
         });
       }
     } catch (e) {

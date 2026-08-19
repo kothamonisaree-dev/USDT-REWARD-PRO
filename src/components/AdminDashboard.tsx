@@ -250,6 +250,57 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const [editLoan, setEditLoan] = useState<LoanData>(loan);
 
+  // Synchronize admin local editable states with live props from server
+  useEffect(() => {
+    if (walletConfig?.currencies && walletConfig.currencies.length > 0) {
+      setCurrenciesList(walletConfig.currencies);
+    }
+    if (walletConfig?.trc20Address) {
+      setEditWalletAddress(walletConfig.trc20Address);
+    }
+    if (walletConfig?.minDeposit !== undefined) {
+      setEditMinDeposit(walletConfig.minDeposit.toString());
+    }
+    if (walletConfig?.qrCodeUrl !== undefined) {
+      setEditQrCodeUrl(walletConfig.qrCodeUrl || '');
+    }
+  }, [walletConfig]);
+
+  useEffect(() => {
+    if (plansList && plansList.length > 0) {
+      setEditPlans(plansList);
+    }
+  }, [plansList]);
+
+  useEffect(() => {
+    if (customerCareConfig) {
+      setEditTelegram(customerCareConfig.telegram);
+      setEditWhatsapp(customerCareConfig.whatsapp);
+      setEditEmail(customerCareConfig.email);
+    }
+  }, [customerCareConfig]);
+
+  useEffect(() => {
+    if (bonusConfig) {
+      setEditDailyBonus(bonusConfig.dailyReward.toString());
+      setEditWelcomeBonus(bonusConfig.welcomeBonus.toString());
+    }
+  }, [bonusConfig]);
+
+  useEffect(() => {
+    if (referralConfig) {
+      setEditTier1(referralConfig.tier1.toString());
+      setEditTier2(referralConfig.tier2.toString());
+      setEditTier3(referralConfig.tier3.toString());
+    }
+  }, [referralConfig]);
+
+  useEffect(() => {
+    if (loan) {
+      setEditLoan(loan);
+    }
+  }, [loan]);
+
   // Selected KYC Modal
   const [selectedKyc, setSelectedKyc] = useState<KycRequestData | null>(null);
 

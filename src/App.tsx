@@ -632,6 +632,9 @@ export default function App() {
         if (cloudSettings.customerCare) setCustomerCareConfig(cloudSettings.customerCare);
         if (cloudSettings.wallet) setWalletConfig(cloudSettings.wallet);
         if (cloudSettings.bonus) setBonusConfig(cloudSettings.bonus);
+        if (cloudSettings.investmentPlans && Array.isArray(cloudSettings.investmentPlans)) setPlansList(cloudSettings.investmentPlans);
+        if (cloudSettings.referral) setReferralConfig(cloudSettings.referral);
+        if (cloudSettings.loan) setLoan(cloudSettings.loan);
       }
     } catch (err) {
       console.warn('[Cloud SQL] Periodic sync warning:', err);
@@ -1792,15 +1795,30 @@ export default function App() {
               onChangeUserVip={handleChangeUserVip}
               onChangeUserRole={handleChangeUserRole}
               onAddNewUser={handleAddNewUser}
-              onUpdateInvestmentPlans={(updatedPlans) => setPlansList(updatedPlans)}
-              onUpdateCustomerCareConfig={(updatedCare) => setCustomerCareConfig(updatedCare)}
+              onUpdateInvestmentPlans={(updatedPlans) => {
+                setPlansList(updatedPlans);
+                api.saveSetting('investmentPlans', updatedPlans);
+              }}
+              onUpdateCustomerCareConfig={(updatedCare) => {
+                setCustomerCareConfig(updatedCare);
+                api.saveSetting('customerCare', updatedCare);
+              }}
               onUpdateWalletConfig={(updatedWallet) => {
                 setWalletConfig(updatedWallet);
                 api.saveSetting('wallet', updatedWallet);
               }}
-              onUpdateBonusConfig={(updatedBonus) => setBonusConfig(updatedBonus)}
-              onUpdateReferralConfig={(updatedRef) => setReferralConfig(updatedRef)}
-              onUpdateLoanNotice={(updatedLoan) => setLoan(updatedLoan)}
+              onUpdateBonusConfig={(updatedBonus) => {
+                setBonusConfig(updatedBonus);
+                api.saveSetting('bonus', updatedBonus);
+              }}
+              onUpdateReferralConfig={(updatedRef) => {
+                setReferralConfig(updatedRef);
+                api.saveSetting('referral', updatedRef);
+              }}
+              onUpdateLoanNotice={(updatedLoan) => {
+                setLoan(updatedLoan);
+                api.saveSetting('loan', updatedLoan);
+              }}
             />
           </div>
         )}
