@@ -108,27 +108,6 @@ export const LoanSystem: React.FC<LoanSystemProps> = ({
   return (
     <div className="my-4 space-y-6 max-w-6xl mx-auto selection:bg-[#22c55e] selection:text-black">
       
-      {/* OVERDUE / ACTIVE BANNER (If exists) */}
-      {activeLoan && activeLoan.status === 'overdue' && (
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-red-950/70 via-red-900/40 to-black border-2 border-red-500/60 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <AlertCircle className="w-6 h-6 text-red-400 shrink-0 animate-bounce" />
-            <div>
-              <h4 className="font-extrabold text-sm text-red-400">Notice: Active Loan Overdue</h4>
-              <p className="text-xs text-slate-300 mt-0.5">
-                Loan #{activeLoan.id} (${activeLoan.amount.toFixed(2)}) is currently marked OVERDUE.
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => onNavigate('loan-notice')}
-            className="px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-xs shrink-0 flex items-center gap-1.5 shadow-lg shadow-red-500/30"
-          >
-            View Official Overdue Notice <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
       {/* TOP HEADER SECTION WITH BADGE */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-1">
         <div className="flex items-center gap-3">

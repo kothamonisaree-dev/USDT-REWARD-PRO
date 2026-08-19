@@ -1,9 +1,12 @@
 {
-	"apiKey": "AIzaSyDWYgGCbV3q0VdAVL_LGn8K8m1w-BJ-wYo",
-	"authDomain": "usdt-reward-pro-vip.firebaseapp.com",
-	"projectId": "usdt-reward-pro-vip",
-	"storageBucket": "usdt-reward-pro-vip.firebasestorage.app",
-	"messagingSenderId": "1074429243034",
-	"appId": "1:1074429243034:web:19ecda30d970bece29b923",
-	"measurementId": "G-5BZGPK77W5"
+  "projectId": "usdt-reward-pro-vip",
+  "appId": "1:1074429243034:web:19ecda30d970bece29b923",
+  "apiKey": "AIzaSyDmqM3ZXqNBT7gqj8GEKiAl3kvT0okWCjU",
+  "authDomain": "usdt-reward-pro-vip.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "usdt-reward-pro-vip.firebasestorage.app",
+  "messagingSenderId": "1074429243034",
+  "measurementId": "G-5BZGPK77W5",
+  "oAuthClientId": "",
+  "recaptchaSiteKey": ""
 }

@@ -1,4 +1,5 @@
 import { ManagedUser, TransactionItem, KycRequestData, LoanData, UserProfile, WalletState, UserRole } from '../types';
+import { firebaseService } from './firebaseService';
 
 export interface AppSession {
   isLoggedIn: boolean;
@@ -31,12 +32,16 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sessionData)
       });
+      // Also sync user profile to Firebase Firestore if present
+      if (sessionData.user?.id) {
+        firebaseService.saveUser(sessionData.user).catch(() => {});
+      }
     } catch (err) {
       console.warn('[API] Session save warning:', err);
     }
   },
 
-  // 1. REGISTER USER IN CLOUD SQL
+  // 1. REGISTER USER IN CLOUD SQL & FIREBASE
   async registerUser(userData: Partial<ManagedUser> & { password?: string }): Promise<{ success: boolean; user?: ManagedUser; error?: string }> {
     try {
       const response = await fetch('/api/auth/register', {
@@ -48,14 +53,17 @@ export const api = {
       if (!response.ok) {
         throw new Error(data.error || 'Registration failed');
       }
+      if (data.user) {
+        firebaseService.saveUser(data.user).catch(() => {});
+      }
       return { success: true, user: data.user };
     } catch (err: any) {
-      console.warn('[API] Cloud SQL register fallback warning:', err);
+      console.warn('[API] Register fallback warning:', err);
       return { success: false, error: err.message };
     }
   },
 
-  // 2. LOGIN USER FROM CLOUD SQL
+  // 2. LOGIN USER FROM CLOUD SQL & FIREBASE
   async loginUser(usernameOrEmail: string, password?: string): Promise<{ success: boolean; user?: ManagedUser; error?: string }> {
     try {
       const response = await fetch('/api/auth/login', {
@@ -67,29 +75,37 @@ export const api = {
       if (!response.ok) {
         throw new Error(data.error || 'Login failed');
       }
+      if (data.user) {
+        firebaseService.saveUser(data.user).catch(() => {});
+      }
       return { success: true, user: data.user };
     } catch (err: any) {
-      console.warn('[API] Cloud SQL login fallback warning:', err);
+      console.warn('[API] Login fallback warning:', err);
       return { success: false, error: err.message };
     }
   },
 
-  // 3. FETCH ALL USERS FROM CLOUD SQL
+  // 3. FETCH ALL USERS FROM CLOUD SQL / FIREBASE
   async fetchUsers(): Promise<ManagedUser[]> {
     try {
       const response = await fetch('/api/users');
       const data = await response.json();
-      if (response.ok && data.users) {
+      if (response.ok && data.users && data.users.length > 0) {
         return data.users;
+      }
+      // Firestore fallback
+      const firestoreUsers = await firebaseService.getAllUsers();
+      if (firestoreUsers.length > 0) {
+        return firestoreUsers;
       }
       return [];
     } catch (err) {
-      console.warn('[API] Failed to fetch users from Cloud SQL:', err);
+      console.warn('[API] Failed to fetch users:', err);
       return [];
     }
   },
 
-  // 3.1 FETCH SINGLE USER BY ID FROM CLOUD SQL
+  // 3.1 FETCH SINGLE USER BY ID
   async fetchUserById(userId: string): Promise<ManagedUser | null> {
     try {
       const response = await fetch(`/api/users/${userId}`);
@@ -97,16 +113,19 @@ export const api = {
       if (response.ok && data.user) {
         return data.user;
       }
-      return null;
+      return await firebaseService.getUser(userId);
     } catch (err) {
-      console.warn('[API] Failed to fetch user by id from Cloud SQL:', err);
+      console.warn('[API] Failed to fetch user by id:', err);
       return null;
     }
   },
 
-  // 4. UPDATE USER IN CLOUD SQL
+  // 4. UPDATE USER IN CLOUD SQL & FIREBASE
   async updateUser(userId: string, updates: Partial<ManagedUser>): Promise<boolean> {
     try {
+      // Sync to Firebase
+      firebaseService.saveUser({ id: userId, ...updates }).catch(() => {});
+      
       const response = await fetch(`/api/users/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -114,7 +133,7 @@ export const api = {
       });
       return response.ok;
     } catch (err) {
-      console.warn('[API] Failed to update user in Cloud SQL:', err);
+      console.warn('[API] Failed to update user:', err);
       return false;
     }
   },
@@ -124,12 +143,12 @@ export const api = {
     try {
       const response = await fetch('/api/transactions');
       const data = await response.json();
-      if (response.ok && data.transactions) {
+      if (response.ok && data.transactions && data.transactions.length > 0) {
         return data.transactions;
       }
-      return [];
+      return await firebaseService.getAllTransactions();
     } catch (err) {
-      console.warn('[API] Failed to fetch transactions from Cloud SQL:', err);
+      console.warn('[API] Failed to fetch transactions:', err);
       return [];
     }
   },
@@ -143,11 +162,15 @@ export const api = {
       });
       const data = await response.json();
       if (response.ok && data.transaction) {
+        firebaseService.saveTransaction(data.transaction).catch(() => {});
         return data.transaction;
       }
-      return null;
+      if (tx.id) {
+        firebaseService.saveTransaction(tx as TransactionItem).catch(() => {});
+      }
+      return (tx as TransactionItem) || null;
     } catch (err) {
-      console.warn('[API] Failed to save transaction in Cloud SQL:', err);
+      console.warn('[API] Failed to save transaction:', err);
       return null;
     }
   },
@@ -161,7 +184,7 @@ export const api = {
       });
       return response.ok;
     } catch (err) {
-      console.warn('[API] Failed to update transaction in Cloud SQL:', err);
+      console.warn('[API] Failed to update transaction:', err);
       return false;
     }
   },
@@ -176,13 +199,14 @@ export const api = {
       }
       return [];
     } catch (err) {
-      console.warn('[API] Failed to fetch KYC requests from Cloud SQL:', err);
+      console.warn('[API] Failed to fetch KYC requests:', err);
       return [];
     }
   },
 
   async submitKyc(kycData: KycRequestData): Promise<boolean> {
     try {
+      firebaseService.saveKyc(kycData).catch(() => {});
       const response = await fetch('/api/kyc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -190,7 +214,7 @@ export const api = {
       });
       return response.ok;
     } catch (err) {
-      console.warn('[API] Failed to submit KYC to Cloud SQL:', err);
+      console.warn('[API] Failed to submit KYC:', err);
       return false;
     }
   },
@@ -204,7 +228,7 @@ export const api = {
       });
       return response.ok;
     } catch (err) {
-      console.warn('[API] Failed to update KYC in Cloud SQL:', err);
+      console.warn('[API] Failed to update KYC:', err);
       return false;
     }
   },
@@ -219,13 +243,16 @@ export const api = {
       }
       return [];
     } catch (err) {
-      console.warn('[API] Failed to fetch loans from Cloud SQL:', err);
+      console.warn('[API] Failed to fetch loans:', err);
       return [];
     }
   },
 
   async createLoan(loan: Partial<LoanData>): Promise<boolean> {
     try {
+      if (loan.id) {
+        firebaseService.saveLoan(loan as LoanData).catch(() => {});
+      }
       const response = await fetch('/api/loans', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -233,7 +260,7 @@ export const api = {
       });
       return response.ok;
     } catch (err) {
-      console.warn('[API] Failed to save loan in Cloud SQL:', err);
+      console.warn('[API] Failed to save loan:', err);
       return false;
     }
   },
@@ -248,13 +275,14 @@ export const api = {
       }
       return {};
     } catch (err) {
-      console.warn('[API] Failed to fetch settings from Cloud SQL:', err);
+      console.warn('[API] Failed to fetch settings:', err);
       return {};
     }
   },
 
   async saveSetting(key: string, value: any): Promise<boolean> {
     try {
+      firebaseService.saveSetting(key, value).catch(() => {});
       const response = await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -262,7 +290,7 @@ export const api = {
       });
       return response.ok;
     } catch (err) {
-      console.warn('[API] Failed to save setting in Cloud SQL:', err);
+      console.warn('[API] Failed to save setting:', err);
       return false;
     }
   }

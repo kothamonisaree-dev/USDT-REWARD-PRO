@@ -1,0 +1,114 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered user profile and balance state",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "password": { "type": "string" },
+        "fullName": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "avatar": { "type": "string" },
+        "vipLevel": { "type": "number" },
+        "kycStatus": { "type": "string" },
+        "accountStatus": { "type": "string" },
+        "role": { "type": "string" },
+        "usdtBalance": { "type": "number" },
+        "totalDeposit": { "type": "number" },
+        "totalWithdraw": { "type": "number" },
+        "totalProfit": { "type": "number" },
+        "joinedDate": { "type": "string" },
+        "referralCode": { "type": "string" },
+        "tradesCount": { "type": "number" },
+        "is2FAEnabled": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "username", "email", "role"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "User deposit, withdrawal, or trade log",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "network": { "type": "string" },
+        "txHash": { "type": "string" },
+        "status": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "userId", "type", "amount", "status"]
+    },
+    "KYC": {
+      "title": "KYC",
+      "description": "Identity verification submission",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "fullName": { "type": "string" },
+        "documentType": { "type": "string" },
+        "documentNumber": { "type": "string" },
+        "status": { "type": "string" },
+        "submittedAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "documentType", "status"]
+    },
+    "Loan": {
+      "title": "Loan",
+      "description": "Crypto credit and loan application",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "amount": { "type": "number" },
+        "termDays": { "type": "number" },
+        "interestRate": { "type": "number" },
+        "repaymentAmount": { "type": "number" },
+        "status": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "amount", "status"]
+    },
+    "Setting": {
+      "title": "Setting",
+      "description": "Global platform setting or wallet configuration",
+      "type": "object",
+      "properties": {
+        "key": { "type": "string" },
+        "value": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["key", "value"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User accounts and profile documents"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Financial and trading transaction logs"
+    },
+    "/kyc/{kycId}": {
+      "schema": "KYC",
+      "description": "KYC verification records"
+    },
+    "/loans/{loanId}": {
+      "schema": "Loan",
+      "description": "Instant loan records"
+    },
+    "/settings/{settingKey}": {
+      "schema": "Setting",
+      "description": "Platform settings and deposit wallet configurations"
+    }
+  }
+}
