@@ -1,54 +1,118 @@
 import React, { useState } from 'react';
-import { LoanData, NavigationTab } from '../types';
-import { LandPlot, ShieldCheck, AlertCircle, Upload, CreditCard, UserCheck, Phone, CheckCircle2, ArrowRight } from 'lucide-react';
+import { LoanData, NavigationTab, UserProfile } from '../types';
+import { 
+  LandPlot, ShieldCheck, AlertCircle, Upload, CheckCircle2, 
+  ArrowRight, FileText, Camera, Sparkles, HelpCircle 
+} from 'lucide-react';
+import confetti from 'canvas-confetti';
 
 interface LoanSystemProps {
-  activeLoan: LoanData;
+  activeLoan?: LoanData;
+  user?: UserProfile;
   onNavigate: (tab: NavigationTab) => void;
-  onRequestLoanSubmit: (amount: number, termDays: number) => void;
+  onRequestLoanSubmit: (amount: number, termDays: number, applicationData?: any) => void;
 }
 
-export const LoanSystem: React.FC<LoanSystemProps> = ({ activeLoan, onNavigate, onRequestLoanSubmit }) => {
-  const [loanAmount, setLoanAmount] = useState<string>('1000');
-  const [selectedTerm, setSelectedTerm] = useState<number>(14);
-
-  // Requirement checkboxes demo
-  const [passportUploaded, setPassportUploaded] = useState(true);
-  const [bankCardAdded, setBankCardAdded] = useState(true);
-  const [faceVerified, setFaceVerified] = useState(true);
-  const [phoneInput, setPhoneInput] = useState('+1 (555) 389-2041');
-  const [submitted, setSubmitted] = useState(false);
-
-  const termPlans = [
-    { days: 7, rate: 2.0 },
-    { days: 14, rate: 3.2 },
-    { days: 21, rate: 4.3 },
-    { days: 28, rate: 5.2 }
+export const LoanSystem: React.FC<LoanSystemProps> = ({ 
+  activeLoan, 
+  user,
+  onNavigate, 
+  onRequestLoanSubmit 
+}) => {
+  // Loan Amount
+  const [loanAmount, setLoanAmount] = useState<number>(1000);
+  
+  // Tenure Options
+  const tenureOptions = [
+    { days: 3, rate: 2.3 },
+    { days: 5, rate: 4.7 },
+    { days: 7, rate: 5.2 },
+    { days: 14, rate: 7.0 }
   ];
+  const [selectedDays, setSelectedDays] = useState<number>(3);
 
-  const currentRate = termPlans.find(t => t.days === selectedTerm)?.rate || 3.2;
-  const numAmount = parseFloat(loanAmount) || 1000;
-  const calculatedInterest = (numAmount * currentRate) / 100;
-  const totalRepayment = numAmount + calculatedInterest;
+  // Form Fields (Empty by default as requested)
+  const [fullName, setFullName] = useState<string>('');
+  const [mobileNumber, setMobileNumber] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
+  const [permanentAddress, setPermanentAddress] = useState<string>('');
+  const [zipCode, setZipCode] = useState<string>('');
+  const [documentType, setDocumentType] = useState<string>('Passport');
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
 
-  const handleSubmitLoan = () => {
-    if (numAmount < 100 || numAmount > 50000) {
-      alert('Loan amount must be between $100 and $50,000 USD');
+  // Status
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [submittedSuccess, setSubmittedSuccess] = useState<boolean>(false);
+
+  // Calculations
+  const currentTenure = tenureOptions.find(t => t.days === selectedDays) || tenureOptions[0];
+  const interestFees = (loanAmount * currentTenure.rate) / 100;
+  const repaymentAmount = loanAmount + interestFees;
+  
+  // Calculate Due Date based on current date + selected days
+  const calculateDueDate = (daysToAdd: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + daysToAdd);
+    const mm = d.getMonth() + 1;
+    const dd = d.getDate();
+    const yyyy = d.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  };
+  const dueDateStr = calculateDueDate(selectedDays);
+
+  const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setDocumentFile(e.target.files[0]);
+    }
+  };
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setPhotoFile(e.target.files[0]);
+    }
+  };
+
+  const handleSubmitApplication = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fullName.trim() || !mobileNumber.trim() || !email.trim()) {
+      alert('Please fill in all required contact information.');
       return;
     }
-    onRequestLoanSubmit(numAmount, selectedTerm);
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 3000);
+
+    setIsSubmitting(true);
+    setTimeout(() => {
+      setIsSubmitting(false);
+      setSubmittedSuccess(true);
+
+      // Trigger Celebration
+      confetti({
+        particleCount: 80,
+        spread: 60,
+        origin: { y: 0.4 }
+      });
+
+      onRequestLoanSubmit(loanAmount, selectedDays, {
+        fullName,
+        mobileNumber,
+        email,
+        permanentAddress,
+        zipCode,
+        documentType,
+        documentFileName: documentFile?.name || 'passport_scan.pdf',
+        photoFileName: photoFile?.name || 'selfie_verification.jpg'
+      });
+    }, 1000);
   };
 
   return (
-    <div className="my-6 space-y-6">
+    <div className="my-4 space-y-6 max-w-6xl mx-auto selection:bg-[#22c55e] selection:text-black">
       
-      {/* Banner if loan is overdue */}
-      {activeLoan.status === 'overdue' && (
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-red-950/60 via-red-900/30 to-black border-2 border-red-500/50 flex flex-col sm:flex-row items-center justify-between gap-4">
+      {/* OVERDUE / ACTIVE BANNER (If exists) */}
+      {activeLoan && activeLoan.status === 'overdue' && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-red-950/70 via-red-900/40 to-black border-2 border-red-500/60 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <AlertCircle className="w-6 h-6 text-red-400 shrink-0" />
+            <AlertCircle className="w-6 h-6 text-red-400 shrink-0 animate-bounce" />
             <div>
               <h4 className="font-extrabold text-sm text-red-400">Notice: Active Loan Overdue</h4>
               <p className="text-xs text-slate-300 mt-0.5">
@@ -58,138 +122,337 @@ export const LoanSystem: React.FC<LoanSystemProps> = ({ activeLoan, onNavigate, 
           </div>
           <button
             onClick={() => onNavigate('loan-notice')}
-            className="px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-xs shrink-0 flex items-center gap-1"
+            className="px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-xs shrink-0 flex items-center gap-1.5 shadow-lg shadow-red-500/30"
           >
             View Official Overdue Notice <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* Main Loan Request Calculator */}
-      <div className="glass-gold-card p-6 space-y-6">
-        <div>
-          <h2 className="text-xl font-extrabold text-slate-100 flex items-center gap-2">
-            <LandPlot className="w-6 h-6 text-[#F4C542]" /> Instant Crypto Credit & Loan System
-          </h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Apply for zero-collateral instant liquidity from $100 up to $50,000 USD.
-          </p>
+      {/* TOP HEADER SECTION WITH BADGE */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-1">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-2">
+            <span>Instant Loan — USDT Vault</span>
+          </h1>
         </div>
 
-        {/* Loan Plans Comparison Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[500px]">
-            <thead>
-              <tr className="border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase bg-[#080D18]">
-                <th className="p-3">Loan Term</th>
-                <th className="p-3">Interest Rate</th>
-                <th className="p-3">Example ($1,000 Loan)</th>
-                <th className="p-3">Total Repayment</th>
-                <th className="p-3 text-right">Select Plan</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60 font-mono text-xs">
-              {termPlans.map(plan => (
-                <tr key={plan.days} className="hover:bg-slate-800/30">
-                  <td className="p-3 font-bold text-slate-100">{plan.days} Days</td>
-                  <td className="p-3 text-[#F4C542] font-bold">{plan.rate}%</td>
-                  <td className="p-3 text-slate-300">Interest: ${(1000 * plan.rate / 100).toFixed(2)}</td>
-                  <td className="p-3 font-bold text-emerald-400">${(1000 + (1000 * plan.rate / 100)).toFixed(2)}</td>
-                  <td className="p-3 text-right">
-                    <button
-                      onClick={() => setSelectedTerm(plan.days)}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                        selectedTerm === plan.days
-                          ? 'bg-[#F4C542] text-black shadow-md'
-                          : 'bg-[#080D18] text-slate-300 border border-slate-700'
-                      }`}
-                    >
-                      {selectedTerm === plan.days ? 'Selected' : 'Choose'}
-                    </button>
-                  </td>
-                </tr>
+        <div className="flex items-center gap-2">
+          <span className="px-3.5 py-1.5 rounded-full text-[11px] font-black tracking-wider uppercase border border-[#22c55e]/40 bg-[#22c55e]/10 text-[#22c55e] flex items-center gap-1.5">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>INSTANT LIQUIDITY</span>
+          </span>
+        </div>
+      </div>
+
+      {/* MAIN TWO-COLUMN SYSTEM LAYOUT */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        {/* LEFT COLUMN: LOAN CALCULATOR & KEY METRICS */}
+        <div className="lg:col-span-5 bg-[#0a0f12] border border-slate-800/90 rounded-[24px] p-6 space-y-6 shadow-2xl">
+          
+          {/* Slider Header */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-extrabold text-slate-200">
+                Loan Amount
+              </span>
+              <span className="text-xl sm:text-2xl font-black font-mono text-[#22c55e]">
+                ${loanAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+
+            {/* Range Slider */}
+            <div className="relative pt-1">
+              <input
+                type="range"
+                min="100"
+                max="11500"
+                step="50"
+                value={loanAmount}
+                onChange={(e) => setLoanAmount(Number(e.target.value))}
+                className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-[#22c55e]"
+              />
+              <div className="flex justify-between text-[11px] text-slate-400 font-medium mt-2">
+                <span>Range $100 – $11,500 USDT</span>
+              </div>
+            </div>
+
+            {/* Quick Preset Buttons */}
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {[500, 1000, 2500, 5000, 10000, 11500].map((amt) => (
+                <button
+                  key={amt}
+                  type="button"
+                  onClick={() => setLoanAmount(amt)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold font-mono transition-all ${
+                    loanAmount === amt
+                      ? 'bg-[#22c55e]/20 text-[#22c55e] border border-[#22c55e]/50'
+                      : 'bg-slate-900/90 text-slate-400 hover:text-white border border-slate-800'
+                  }`}
+                >
+                  ${amt.toLocaleString()}
+                </button>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </div>
+
+          {/* Loan Tenure Selector Cards */}
+          <div className="grid grid-cols-4 gap-2">
+            {tenureOptions.map((t) => {
+              const isSelected = selectedDays === t.days;
+              return (
+                <button
+                  key={t.days}
+                  type="button"
+                  onClick={() => setSelectedDays(t.days)}
+                  className={`p-3 rounded-2xl flex flex-col items-center justify-center transition-all text-center ${
+                    isSelected
+                      ? 'border-2 border-[#22c55e] bg-[#22c55e]/10 text-white shadow-[0_0_15px_rgba(34,197,94,0.2)]'
+                      : 'border border-slate-800 bg-[#0d1417] text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                  }`}
+                >
+                  <span className="text-xs font-black">{t.days} Days</span>
+                  <span className={`text-[11px] font-extrabold mt-0.5 ${isSelected ? 'text-[#22c55e]' : 'text-slate-400'}`}>
+                    {t.rate}%
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 4-Metrics Grid */}
+          <div className="grid grid-cols-2 gap-4">
+            
+            {/* Box 1: Interest / Fees */}
+            <div className="p-4 rounded-2xl bg-[#0e1619] border border-slate-800/80 space-y-1">
+              <span className="text-[10px] font-extrabold tracking-wider uppercase text-slate-400 block">
+                INTEREST / FEES
+              </span>
+              <span className="text-lg font-black font-mono text-white">
+                ${interestFees.toFixed(2)}
+              </span>
+            </div>
+
+            {/* Box 2: Repayment Amount */}
+            <div className="p-4 rounded-2xl bg-[#0e1619] border border-slate-800/80 space-y-1">
+              <span className="text-[10px] font-extrabold tracking-wider uppercase text-slate-400 block">
+                REPAYMENT AMOUNT
+              </span>
+              <span className="text-lg font-black font-mono text-white">
+                ${repaymentAmount.toFixed(2)}
+              </span>
+            </div>
+
+            {/* Box 3: Due Date */}
+            <div className="p-4 rounded-2xl bg-[#0e1619] border border-slate-800/80 space-y-1">
+              <span className="text-[10px] font-extrabold tracking-wider uppercase text-slate-400 block">
+                DUE DATE
+              </span>
+              <span className="text-lg font-black font-mono text-white">
+                {dueDateStr}
+              </span>
+            </div>
+
+            {/* Box 4: Approved Amount */}
+            <div className="p-4 rounded-2xl bg-[#0e1619] border border-slate-800/80 space-y-1">
+              <span className="text-[10px] font-extrabold tracking-wider uppercase text-slate-400 block">
+                APPROVED AMOUNT
+              </span>
+              <span className="text-lg font-black font-mono text-white">
+                ${loanAmount.toFixed(2)}
+              </span>
+            </div>
+
+          </div>
+
+          {/* Footer Note */}
+          <p className="text-[11px] text-slate-400 leading-relaxed pt-2">
+            Institutional crypto credit facility. Instant liquidity is credited directly to your USDT Vault upon approval.
+          </p>
+
         </div>
 
-        {/* Loan Amount Input & Repayment Preview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-800">
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Requested Loan Amount ($100 – $50,000 USD)
+        {/* RIGHT COLUMN: APPLICATION FORM */}
+        <div className="lg:col-span-7 bg-[#0a0f12] border border-slate-800/90 rounded-[24px] p-6 sm:p-7 space-y-5 shadow-2xl">
+          
+          <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+            <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2">
+              <span>Loan Application</span>
+            </h2>
+            <span className="text-[11px] font-bold text-slate-400">Zero-Collateral Instant Review</span>
+          </div>
+
+          {submittedSuccess && (
+            <div className="p-4 rounded-2xl bg-[#22c55e]/15 border border-[#22c55e]/40 text-[#22c55e] text-xs font-bold space-y-1 animate-in fade-in">
+              <div className="flex items-center gap-2 font-black text-sm">
+                <CheckCircle2 className="w-5 h-5 shrink-0" />
+                <span>Application Submitted Successfully!</span>
+              </div>
+              <p className="text-slate-300 font-medium">
+                Your loan application for <strong>${loanAmount.toFixed(2)} USDT ({selectedDays} Days)</strong> has been recorded. Review status will update shortly.
+              </p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmitApplication} className="space-y-4">
+            
+            {/* Full Name */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-300">
+                Full Name
               </label>
               <input
-                type="number"
-                value={loanAmount}
-                onChange={(e) => setLoanAmount(e.target.value)}
-                placeholder="1000"
-                className="w-full bg-[#080D18] border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 font-mono focus:border-[#F4C542] focus:outline-none"
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Enter full legal name"
+                required
+                className="w-full bg-[#0d1417] border border-slate-800 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:border-[#22c55e] focus:outline-none transition-all"
               />
             </div>
 
-            {/* Verification Steps checklist */}
-            <div className="space-y-2 text-xs">
-              <span className="font-bold text-slate-300 block mb-1">Application Requirements:</span>
-              <div className="p-3 rounded-xl bg-[#080D18] border border-slate-800 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-slate-300"><Upload className="w-3.5 h-3.5 text-[#F4C542]" /> Upload NID or Passport</span>
-                  <span className="text-emerald-400 font-bold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Verified</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-slate-300"><CreditCard className="w-3.5 h-3.5 text-[#F4C542]" /> Linked Bank Card</span>
-                  <span className="text-emerald-400 font-bold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Linked</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-slate-300"><UserCheck className="w-3.5 h-3.5 text-[#F4C542]" /> Face Biometric Check</span>
-                  <span className="text-emerald-400 font-bold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Passed</span>
-                </div>
-                <div className="flex items-center justify-between pt-1 border-t border-slate-800">
-                  <span className="flex items-center gap-1.5 text-slate-300"><Phone className="w-3.5 h-3.5 text-[#F4C542]" /> Phone Verification</span>
-                  <span className="font-mono text-slate-200">{phoneInput}</span>
+            {/* Mobile Number */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-300">
+                Mobile Number
+              </label>
+              <input
+                type="text"
+                value={mobileNumber}
+                onChange={(e) => setMobileNumber(e.target.value)}
+                placeholder="+1 (555) 000-0000"
+                required
+                className="w-full bg-[#0d1417] border border-slate-800 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:border-[#22c55e] focus:outline-none transition-all font-mono"
+              />
+            </div>
+
+            {/* Email */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-300">
+                Email
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="email@example.com"
+                required
+                className="w-full bg-[#0d1417] border border-slate-800 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:border-[#22c55e] focus:outline-none transition-all"
+              />
+            </div>
+
+            {/* Permanent Address */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-300">
+                Permanent Address
+              </label>
+              <input
+                type="text"
+                value={permanentAddress}
+                onChange={(e) => setPermanentAddress(e.target.value)}
+                placeholder="Enter complete residential address"
+                className="w-full bg-[#0d1417] border border-slate-800 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:border-[#22c55e] focus:outline-none transition-all"
+              />
+            </div>
+
+            {/* ZIP Code */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-300">
+                ZIP Code
+              </label>
+              <input
+                type="text"
+                value={zipCode}
+                onChange={(e) => setZipCode(e.target.value)}
+                placeholder="ZIP / Postal Code"
+                className="w-full bg-[#0d1417] border border-slate-800 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:border-[#22c55e] focus:outline-none transition-all font-mono"
+              />
+            </div>
+
+            {/* Document Type Dropdown */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-300">
+                Document Type
+              </label>
+              <div className="relative">
+                <select
+                  value={documentType}
+                  onChange={(e) => setDocumentType(e.target.value)}
+                  className="w-full bg-[#0d1417] border border-slate-800 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-100 focus:border-[#22c55e] focus:outline-none appearance-none cursor-pointer"
+                >
+                  <option value="Passport">Passport</option>
+                  <option value="National ID Card">National ID Card</option>
+                  <option value="Driver License">Driver's License</option>
+                  <option value="Tax Residence Certificate">Tax Residence Certificate</option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
+                  ▼
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Repayment Summary */}
-          <div className="p-5 rounded-2xl bg-[#080D18] border border-[#F4C542]/30 flex flex-col justify-between space-y-4 font-mono text-xs">
-            <h4 className="font-extrabold text-sm text-[#F4C542] uppercase tracking-wider">Loan Repayment Summary</h4>
-            
-            <div className="space-y-2">
-              <div className="flex justify-between py-1 border-b border-slate-800">
-                <span className="text-slate-400">Selected Term:</span>
-                <span className="text-slate-100 font-bold">{selectedTerm} Days</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-800">
-                <span className="text-slate-400">Interest Rate:</span>
-                <span className="text-[#F4C542] font-bold">{currentRate}%</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-800">
-                <span className="text-slate-400">Accrued Interest:</span>
-                <span className="text-[#F4C542] font-bold">+${calculatedInterest.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between pt-2 text-sm font-bold">
-                <span className="text-slate-100">Total Payable Amount:</span>
-                <span className="text-emerald-400">${totalRepayment.toFixed(2)} USD</span>
+            {/* Document Upload */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-300">
+                Document Upload
+              </label>
+              <div className="flex items-center gap-3 bg-[#0d1417] border border-slate-800 rounded-xl p-2.5">
+                <label className="cursor-pointer px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-extrabold transition-all shrink-0">
+                  Choose File
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={handleDocumentChange}
+                    accept="image/*,.pdf"
+                  />
+                </label>
+                <span className="text-xs text-slate-400 truncate">
+                  {documentFile ? documentFile.name : 'No file chosen'}
+                </span>
               </div>
             </div>
 
-            {submitted && (
-              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold text-center">
-                ✅ Loan Application Submitted! Estimated Review Time: 5–30 minutes.
+            {/* Optional Photo */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-300">
+                Optional Photo
+              </label>
+              <div className="flex items-center gap-3 bg-[#0d1417] border border-slate-800 rounded-xl p-2.5">
+                <label className="cursor-pointer px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-extrabold transition-all shrink-0">
+                  Choose File
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={handlePhotoChange}
+                    accept="image/*"
+                  />
+                </label>
+                <span className="text-xs text-slate-400 truncate">
+                  {photoFile ? photoFile.name : 'No file chosen'}
+                </span>
               </div>
-            )}
+            </div>
 
-            <button
-              onClick={handleSubmitLoan}
-              className="w-full py-3.5 btn-gold-gradient text-sm font-bold text-black"
-            >
-              Submit Loan Application Now
-            </button>
-          </div>
+            {/* Submit Button */}
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-4 rounded-2xl bg-[#22c55e] hover:bg-[#16a34a] active:scale-[0.99] text-black text-sm font-black transition-all shadow-xl shadow-[#22c55e]/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <span>Processing Loan Application...</span>
+                ) : (
+                  <span>Submit Loan Application</span>
+                )}
+              </button>
+            </div>
+
+          </form>
+
         </div>
+
       </div>
 
     </div>

@@ -1712,6 +1712,7 @@ export default function App() {
           <div className="animate-in fade-in duration-300">
             <LoanSystem
               activeLoan={loan}
+              user={user}
               onNavigate={setActiveTab}
               onRequestLoanSubmit={(amt, term) => {
                 handleAddNotification(

@@ -62,7 +62,7 @@ export const investmentPlans: InvestmentPlan[] = [
     durationSeconds: 300,
     title: '300 Seconds Ultra PRO Yield',
     profitPercentage: 50,
-    minInvestment: 50,
+    minInvestment: 2500,
     maxInvestment: 50000,
     description: '5-minute premium cycle delivering maximum 50% fixed yield return.'
   }

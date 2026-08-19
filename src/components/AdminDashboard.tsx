@@ -111,9 +111,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Editable local states
   const [editPlans, setEditPlans] = useState<InvestmentPlan[]>(plansList.length > 0 ? plansList : [
-    { id: 'p1', title: '90s Ultra Express Yield', durationSeconds: 90, profitPercentage: 20, minInvestment: 50, maxInvestment: 10000, description: 'High frequency automated liquidity arbitrage' },
-    { id: 'p2', title: '180s High Yield Staking', durationSeconds: 180, profitPercentage: 35, minInvestment: 100, maxInvestment: 25000, description: 'DeFi yield farming liquidity pool' },
-    { id: 'p3', title: '300s VIP Institutional Pool', durationSeconds: 300, profitPercentage: 50, minInvestment: 500, maxInvestment: 100000, description: 'Direct algorithmic flash loan arbitrage' }
+    { id: 'p1', title: '90s Ultra Express Yield', durationSeconds: 90, profitPercentage: 20, minInvestment: 50, maxInvestment: 50000, description: 'High frequency automated liquidity arbitrage' },
+    { id: 'p2', title: '180s High Yield Staking', durationSeconds: 180, profitPercentage: 30, minInvestment: 1000, maxInvestment: 50000, description: 'DeFi yield farming liquidity pool' },
+    { id: 'p3', title: '300 Seconds Ultra PRO Yield', durationSeconds: 300, profitPercentage: 50, minInvestment: 2500, maxInvestment: 50000, description: 'Direct algorithmic flash loan arbitrage' }
   ]);
 
   const [editWalletAddress, setEditWalletAddress] = useState(walletConfig.trc20Address);
