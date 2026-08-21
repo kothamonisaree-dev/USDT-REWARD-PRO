@@ -12,28 +12,28 @@ import {
 } from '../types';
 
 export const initialUserProfile: UserProfile = {
-  id: 'USR-8829401',
-  username: 'alexmorgan',
-  fullName: 'Alex Morgan',
-  email: 'alex.m@usdtpro.com',
-  phone: '+1 (555) 389-2041',
-  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
+  id: 'USR-0000000',
+  username: '',
+  fullName: 'VIP Trader',
+  email: '',
+  phone: '',
+  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=VIPTrader',
   vipLevel: 1,
   kycStatus: 'unverified',
   is2FAEnabled: false,
   role: 'user',
-  joinedDate: '2025-11-12',
-  referralCode: 'USDT-VIP-8829'
+  joinedDate: new Date().toISOString().split('T')[0],
+  referralCode: 'USDT-VIP'
 };
 
 export const initialWalletState: WalletState = {
-  usdtBalance: 12850.50,
-  usdBalance: 12850.50,
-  btcBalance: 0.1425,
-  ethBalance: 2.1840,
-  totalDeposit: 45200.00,
-  totalWithdraw: 28500.00,
-  totalProfit: 8240.50,
+  usdtBalance: 0.00,
+  usdBalance: 0.00,
+  btcBalance: 0.0000,
+  ethBalance: 0.0000,
+  totalDeposit: 0.00,
+  totalWithdraw: 0.00,
+  totalProfit: 0.00,
   activeInvestmentAmount: 0.00,
   walletAddress: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F'
 };

@@ -577,47 +577,50 @@ export default function App() {
       if (Array.isArray(cloudUsers)) {
         setUsersList(cloudUsers);
 
-        // Sync current user's profile and balance if logged in
-        setUser(currUser => {
-          const matchedCloudUser = cloudUsers.find(
-            u => u.id === currUser.id || 
-                 u.username.toLowerCase() === currUser.username.toLowerCase() || 
-                 u.email.toLowerCase() === currUser.email.toLowerCase()
-          );
+        // Sync current user's profile and balance only if already logged in with a valid account
+        if (isLoggedIn) {
+          setUser(currUser => {
+            if (!currUser || !currUser.username) return currUser;
+            const matchedCloudUser = cloudUsers.find(
+              u => (currUser.id && u.id === currUser.id) || 
+                   (currUser.username && u.username.toLowerCase() === currUser.username.toLowerCase()) || 
+                   (currUser.email && u.email.toLowerCase() === currUser.email.toLowerCase())
+            );
 
-          if (matchedCloudUser) {
-            const updatedProfile: UserProfile = {
-              ...currUser,
-              id: matchedCloudUser.id,
-              username: matchedCloudUser.username,
-              fullName: matchedCloudUser.fullName,
-              email: matchedCloudUser.email,
-              phone: matchedCloudUser.phone || currUser.phone,
-              avatar: matchedCloudUser.avatar || currUser.avatar,
-              vipLevel: matchedCloudUser.vipLevel || currUser.vipLevel,
-              kycStatus: matchedCloudUser.kycStatus || currUser.kycStatus,
-              role: matchedCloudUser.role || currUser.role,
-              accountStatus: matchedCloudUser.accountStatus || currUser.accountStatus,
-              usdtBalance: matchedCloudUser.usdtBalance ?? currUser.usdtBalance
-            };
-
-            setWallet(currWallet => {
-              const updatedWallet: WalletState = {
-                ...currWallet,
-                usdtBalance: matchedCloudUser.usdtBalance ?? currWallet.usdtBalance,
-                usdBalance: matchedCloudUser.usdtBalance ?? currWallet.usdBalance,
-                totalDeposit: matchedCloudUser.totalDeposit ?? currWallet.totalDeposit,
-                totalWithdraw: matchedCloudUser.totalWithdraw ?? currWallet.totalWithdraw,
-                totalProfit: matchedCloudUser.totalProfit ?? currWallet.totalProfit
+            if (matchedCloudUser) {
+              const updatedProfile: UserProfile = {
+                ...currUser,
+                id: matchedCloudUser.id,
+                username: matchedCloudUser.username,
+                fullName: matchedCloudUser.fullName,
+                email: matchedCloudUser.email,
+                phone: matchedCloudUser.phone || currUser.phone,
+                avatar: matchedCloudUser.avatar || currUser.avatar,
+                vipLevel: matchedCloudUser.vipLevel || currUser.vipLevel,
+                kycStatus: matchedCloudUser.kycStatus || currUser.kycStatus,
+                role: matchedCloudUser.role || currUser.role,
+                accountStatus: matchedCloudUser.accountStatus || currUser.accountStatus,
+                usdtBalance: matchedCloudUser.usdtBalance ?? currUser.usdtBalance
               };
-              saveSession(updatedProfile, updatedWallet, matchedCloudUser.role || 'user', true);
-              return updatedWallet;
-            });
 
-            return updatedProfile;
-          }
-          return currUser;
-        });
+              setWallet(currWallet => {
+                const updatedWallet: WalletState = {
+                  ...currWallet,
+                  usdtBalance: matchedCloudUser.usdtBalance ?? currWallet.usdtBalance,
+                  usdBalance: matchedCloudUser.usdtBalance ?? currWallet.usdBalance,
+                  totalDeposit: matchedCloudUser.totalDeposit ?? currWallet.totalDeposit,
+                  totalWithdraw: matchedCloudUser.totalWithdraw ?? currWallet.totalWithdraw,
+                  totalProfit: matchedCloudUser.totalProfit ?? currWallet.totalProfit
+                };
+                saveSession(updatedProfile, updatedWallet, matchedCloudUser.role || 'user', true);
+                return updatedWallet;
+              });
+
+              return updatedProfile;
+            }
+            return currUser;
+          });
+        }
       }
       if (Array.isArray(cloudTxs)) {
         setTransactions(cloudTxs);
