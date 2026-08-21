@@ -279,6 +279,24 @@ export const initialUsersList: ManagedUser[] = [
     tradesCount: 142
   },
   {
+    id: 'USR-3804544',
+    username: 'candelario',
+    fullName: 'Candelario Méndez Guzmán',
+    email: 'candelariomendez@gmail.com',
+    phone: '+1 (555) 380-4544',
+    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80',
+    vipLevel: 1,
+    kycStatus: 'unverified',
+    accountStatus: 'active',
+    role: 'user',
+    usdtBalance: 0.00,
+    totalDeposit: 0.00,
+    totalWithdraw: 0.00,
+    joinedDate: '2026-08-21',
+    referralCode: 'REF-3804544',
+    tradesCount: 0
+  },
+  {
     id: 'USR-1029384',
     username: 'alex.m',
     fullName: 'Alex Morgan',

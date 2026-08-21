@@ -399,15 +399,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const pendingCount = kycRequests.filter(r => r.status === 'pending').length;
 
-  // Filtered Users List calculation
+  // Filtered Users List calculation with full null-safety & flexible ID matching
   const filteredUsers = usersList.filter(u => {
-    const query = userSearchQuery.toLowerCase();
-    const matchesSearch =
-      u.fullName.toLowerCase().includes(query) ||
-      u.email.toLowerCase().includes(query) ||
-      u.id.toLowerCase().includes(query) ||
-      u.username.toLowerCase().includes(query) ||
-      u.phone.toLowerCase().includes(query);
+    if (!u) return false;
+    const query = (userSearchQuery || '').toLowerCase().trim();
+    const cleanQuery = query.replace('usr-', '');
+
+    const id = (u.id || '').toLowerCase();
+    const cleanId = id.replace('usr-', '');
+    const fullName = (u.fullName || '').toLowerCase();
+    const email = (u.email || '').toLowerCase();
+    const username = (u.username || '').toLowerCase();
+    const phone = (u.phone || '').toLowerCase();
+    const referralCode = (u.referralCode || '').toLowerCase();
+
+    const matchesSearch = !query ||
+      fullName.includes(query) ||
+      email.includes(query) ||
+      id.includes(query) ||
+      cleanId.includes(cleanQuery) ||
+      username.includes(query) ||
+      phone.includes(query) ||
+      referralCode.includes(query);
 
     const matchesStatus = userStatusFilter === 'all' || u.accountStatus === userStatusFilter;
     const matchesVip = userVipFilter === 'all' || u.vipLevel === parseInt(userVipFilter);
@@ -415,7 +428,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     return matchesSearch && matchesStatus && matchesVip;
   });
 
-  const totalVaultFunds = usersList.reduce((acc, u) => acc + u.usdtBalance, 0);
+  const totalVaultFunds = usersList.reduce((acc, u) => acc + (Number(u?.usdtBalance) || 0), 0);
   const activeUserCount = usersList.filter(u => u.accountStatus === 'active').length;
   const restrictedUserCount = usersList.filter(u => u.accountStatus === 'suspended' || u.accountStatus === 'banned').length;
 

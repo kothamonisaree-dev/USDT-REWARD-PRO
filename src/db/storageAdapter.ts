@@ -230,6 +230,52 @@ const userSophia: UserRecord = {
   createdAt: '2026-08-18T10:30:00.000Z'
 };
 
+const user3804544: UserRecord = {
+  id: 'USR-3804544',
+  username: 'candelario',
+  password: 'user1234',
+  fullName: 'Candelario Méndez Guzmán',
+  email: 'candelariomendez@gmail.com',
+  phone: '+1 (555) 380-4544',
+  avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80',
+  vipLevel: 1,
+  kycStatus: 'unverified',
+  accountStatus: 'active',
+  role: 'user',
+  usdtBalance: 0.00,
+  totalDeposit: 0.00,
+  totalWithdraw: 0.00,
+  totalProfit: 0.00,
+  joinedDate: '2026-08-21',
+  referralCode: 'REF-3804544',
+  tradesCount: 0,
+  is2FAEnabled: false,
+  createdAt: '2026-08-21T12:00:00.000Z'
+};
+
+const user4516057: UserRecord = {
+  id: 'USR-4516057',
+  username: 'edgte',
+  password: 'user1234',
+  fullName: 'edgte',
+  email: 'tumki12@gmail.com',
+  phone: '01472553248',
+  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=edgte',
+  vipLevel: 1,
+  kycStatus: 'unverified',
+  accountStatus: 'active',
+  role: 'user',
+  usdtBalance: 0.00,
+  totalDeposit: 0.00,
+  totalWithdraw: 0.00,
+  totalProfit: 0.00,
+  joinedDate: '2026-08-21',
+  referralCode: '1',
+  tradesCount: 0,
+  is2FAEnabled: false,
+  createdAt: '2026-08-21T12:30:00.000Z'
+};
+
 const defaultUser: UserRecord = {
   id: 'USR-1029384',
   username: 'alex.m',
@@ -257,7 +303,7 @@ const defaultUser: UserRecord = {
 loadFromDisk();
 
 // Ensure all snapshot accounts exist in map
-const snapshotUsers = [userTomas, userAlexkahn, userSophia, defaultAdmin, defaultUser];
+const snapshotUsers = [userTomas, userAlexkahn, userSophia, user3804544, defaultAdmin, defaultUser];
 snapshotUsers.forEach(u => {
   if (!usersMap.has(u.id)) {
     usersMap.set(u.id, u);
@@ -353,7 +399,10 @@ export const StorageEngine = {
     const clean = identifier.trim().toLowerCase();
     const allUsers = await this.getAllUsers();
     return allUsers.find(
-      u => u.username.toLowerCase() === clean || u.email.toLowerCase() === clean || u.id.toLowerCase() === clean
+      u => (u.username && u.username.toLowerCase() === clean) || 
+           (u.email && u.email.toLowerCase() === clean) || 
+           (u.id && u.id.toLowerCase() === clean) ||
+           (u.id && u.id.toLowerCase().replace('usr-', '') === clean.replace('usr-', ''))
     ) || null;
   },
 
